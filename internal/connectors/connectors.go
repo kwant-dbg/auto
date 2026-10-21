@@ -23,6 +23,17 @@ type Env struct {
 	UserAgent string
 	// Now is injectable for tests.
 	Now func() time.Time
+	// Metric records a numeric fact about a subject for today (e.g. an app's
+	// installs). Nil means metrics are discarded.
+	Metric func(subject, name string, value float64) error
+}
+
+// RecordMetric calls env.Metric if set.
+func (env Env) RecordMetric(subject, name string, value float64) error {
+	if env.Metric == nil {
+		return nil
+	}
+	return env.Metric(subject, name, value)
 }
 
 // Emit stores one document. It returns an error if the run should stop.

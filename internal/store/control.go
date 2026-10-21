@@ -63,3 +63,12 @@ func (s *Store) TurnsSince(ctx context.Context, t time.Time) (int, error) {
 	err := s.DB.QueryRow(ctx, `SELECT coalesce(sum(num_turns), 0) FROM llm_call WHERE created_at >= $1`, t).Scan(&n)
 	return n, err
 }
+
+// RecordMetric upserts today's value of a metric for a subject.
+func (s *Store) RecordMetric(ctx context.Context, sourceID int64, subject, name string, value float64) error {
+	_, err := s.DB.Exec(ctx, `
+		INSERT INTO metric_observation (source_id, subject, name, value) VALUES ($1, $2, $3, $4)
+		ON CONFLICT (source_id, subject, name, observed_on) DO UPDATE SET value = EXCLUDED.value, observed_at = now()`,
+		sourceID, subject, name, value)
+	return err
+}

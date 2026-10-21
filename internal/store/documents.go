@@ -31,6 +31,9 @@ type SaveResult struct {
 // is a no-op; changed content becomes a new version linked to the previous
 // one (SRC-4), which gives change tracking and page diffs for free.
 func (s *Store) SaveDocument(ctx context.Context, sourceID int64, d Document) (SaveResult, error) {
+	if !d.InjectionSuspect {
+		d.InjectionSuspect = LooksLikeInjection(d.Content)
+	}
 	hash, rel, err := s.Blobs.Put(d.Content)
 	if err != nil {
 		return SaveResult{}, err

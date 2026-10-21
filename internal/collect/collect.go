@@ -18,6 +18,7 @@ type Stats struct {
 	New       int    `json:"new"`
 	Changed   int    `json:"changed"`
 	Requests  int    `json:"requests"`
+	Metrics   int    `json:"metrics"`
 	Error     string `json:"error,omitempty"`
 	ElapsedMS int64  `json:"elapsed_ms"`
 }
@@ -72,7 +73,11 @@ func Run(ctx context.Context, st *store.Store, src store.Source, opt Options) (S
 		httpClient = &http.Client{Timeout: 60 * time.Second}
 	}
 	limiter := connectors.NewLimiter(src.RateLimitPerMin)
-	env := connectors.Env{HTTP: httpClient, Limiter: limiter, UserAgent: opt.UserAgent}
+	env := connectors.Env{HTTP: httpClient, Limiter: limiter, UserAgent: opt.UserAgent,
+		Metric: func(subject, name string, value float64) error {
+			stats.Metrics++
+			return st.RecordMetric(ctx, src.ID, subject, name, value)
+		}}
 
 	cursor, fetchErr := conn.Fetch(ctx, env, src.Cursor, func(d store.Document) error {
 		stats.Emitted++
