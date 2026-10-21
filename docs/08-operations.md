@@ -10,7 +10,7 @@
 |---|---|---|
 | **Per source cadence** (default daily; weekly for slow sources; static datasets on new release) | Collect → snapshot → extract → verify → embed | Back-off doubles the interval when N consecutive runs yield no new verified observations |
 | **Event-driven** (minutes–hours) | Change monitors: pricing-page diffs, regulatory feed items, platform changelogs, shutdown notices | Only triggers research if the event matches an active segment, tracked competitor, or parked wake condition |
-| **Nightly** | Attach observations to problems; triage new problems; scheduler regenerates task queue; research tasks run within budget; Assessor updates; wake-condition checks | Bounded by daily token/$ caps |
+| **Nightly** | Attach observations to problems; triage new problems; scheduler regenerates task queue; research tasks run within budget; Assessor updates; wake-condition checks | Bounded by concurrency and daily turn caps |
 | **Weekly (before review)** | Re-cluster; pairwise ranking of eligible opportunities; baseline B0 cards; **digest generation** | Digest ready at a fixed time the founder chooses |
 | **Weekly (founder, ≤ 60 min)** | Review ≤ 3 cards; blind pairwise; spot-check 3 findings; approve/deny queued actions; set priorities, pauses, budgets | All via CLI + markdown, or chat buttons |
 | **Monthly** | Source-yield report; reason-code mining; calibration update; inter-run consistency check; B1 founder-manual baseline (optional) | 15-minute read |
@@ -79,8 +79,8 @@ If more items qualify, the system ranks them and holds the rest. It doesn't push
 
 | Resource | Control |
 |---|---|
-| LLM tokens | Daily cap + per-task cap + per-opportunity earned budget; `llm_call` ledger |
-| Paid APIs (search, data) | Daily $ cap; per-source $ cap; alerts at 80% |
+| Claude usage (subscription) | Daily turn cap sized to plan rate limits + per-task `--max-turns` + per-opportunity earned budget; rate-limit backoff; `llm_call` ledger |
+| Paid data sources (none planned) | Monthly $ cap if one is added; alerts at 80% |
 | Browser sessions | Max concurrent; only for sources marked browser-permitted |
 | Storage | Snapshot retention policy (keep cited snapshots forever; uncited raw documents expire after N days) |
 | Compute | Worker concurrency setting; sandbox CPU/mem/time limits |

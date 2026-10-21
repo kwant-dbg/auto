@@ -52,10 +52,14 @@ commercial_targets:
   milestones_mrr: [1, 1000, 5000]
   preferred_price_band_usd_month: [150, 600]
   horizon_months: 12
-budgets:
-  daily_llm_usd_cap: <set>
-  daily_paid_api_usd_cap: <set>
+limits:                              # Claude runs on the Enterprise subscription: no $ caps
   max_concurrent_agent_tasks: 4
+  max_agent_turns_per_day: 2000      # tune to the plan's rate limits
+  paid_data_usd_cap_month: 0         # only if a paid source or search fallback is added
+models:                              # Claude Code --model aliases per task tier
+  fast: haiku
+  mid: sonnet
+  top: opus
 attention:
   cards_per_digest: 3
   approvals_per_week: 5
@@ -91,7 +95,7 @@ Priority: **P0** = Phase 1 must-have · **P1** = Phase 2 · **P2** = Phase 3+.
 | SRC-5 | Store `published_at` (if known), `fetched_at`, canonical URL, source type, author/org identifiers (hashed where possible) | P0 |
 | SRC-6 | Per-source cadence with automatic back-off after N runs yielding no new verified observations | P0 |
 | SRC-7 | Source health record: last success, last new observation, error rate | P0 |
-| SRC-8 | Phase 1 connectors: O*NET + BLS OEWS + AI-usage index (static import); public procurement awards API; one app marketplace with permitted access; HN + GitHub search (as research tools) | P0 |
+| SRC-8 | Phase 1 connectors: O*NET + BLS OEWS + AI-usage index (static import); public procurement awards API; one app marketplace with permitted access (default: **Atlassian Marketplace**, terms confirmed in the ToS register before enabling); HN + GitHub search (as research tools) | P0 |
 | SRC-9 | Change monitors: tracked-URL diff (pricing pages, changelogs), regulatory feed, shutdown notices | P1 |
 | SRC-10 | ATS public job-board connector over a curated company list | P1 |
 | SRC-11 | Paid-template / productised-service sampling (manual-rate, terms-respecting) | P1 |
@@ -139,7 +143,7 @@ Priority: **P0** = Phase 1 must-have · **P1** = Phase 2 · **P2** = Phase 3+.
 | ID | Requirement | P |
 |---|---|---|
 | RES-1 | Researcher tasks answer exactly one Question; output = Findings with citations | P0 |
-| RES-2 | Tools: `web_search`, `fetch_and_snapshot` (stores a RawDocument before anything can cite it), `kb_search`, `propose_question`; all read-only | P0 |
+| RES-2 | Tools: Claude Code's built-in `WebSearch`, plus a local Go MCP server providing `fetch_and_snapshot` (stores a RawDocument before anything can cite it), `kb_search` and `propose_question`; all read-only. The built-in WebFetch is disabled because it returns model-summarised text, not raw pages | P0 |
 | RES-3 | Findings are verified: span check (deterministic) + entailment (separate LLM call, overclaiming rubric) → {supported, partial, unsupported} | P0 |
 | RES-4 | Only `supported` findings update factors; `partial` may widen ranges only | P0 |
 | RES-5 | Debate runs on each Dossier (`04` §4.1): Bull and Bear in independent Claude sessions, 2 cited rounds, uncited arguments struck, fresh Judge rules per contested claim; all blinded to EV/scores; outputs surviving objections, gate updates and kill-questions | P0 |
@@ -167,7 +171,7 @@ Priority: **P0** = Phase 1 must-have · **P1** = Phase 2 · **P2** = Phase 3+.
 | RPT-2 | Pairwise LLM ranking among eligible opportunities, both presentation orders, Bradley-Terry aggregation | P0 |
 | RPT-3 | Digest includes 2 blind pairs vs. baseline B0 cards and 3 random findings for spot-check | P0 |
 | RPT-4 | CLI: `aoe digest`, `aoe card <id>`, `aoe rate <id> <useful|not> [reason]`, `aoe pick <pairId> <A|B> [reason]`, `aoe grade <findingId> <supported|overclaimed|wrong>`, `aoe decide <oppId> <advance|park|kill> --reason <code> [--wake ...]`, `aoe approve|deny <actionId>`, `aoe budget`, `aoe pause|resume` | P0 |
-| RPT-5 | Read-only SQL exploration UI (Datasette or Metabase) | P0 |
+| RPT-5 | Read-only SQL exploration UI (Metabase) | P0 |
 | RPT-6 | Monthly report: source yield, reason codes, calibration, consistency, costs | P1 |
 | RPT-7 | Case-based retrieval of similar past decisions into triage/ranking prompts | P1 |
 
@@ -191,19 +195,21 @@ Priority: **P0** = Phase 1 must-have · **P1** = Phase 2 · **P2** = Phase 3+.
 
 ## 7. Task-type catalogue (Phase 1)
 
+Every LLM task runs as a headless Claude Code subprocess (`claude -p`) with the per-task flags in `04` §7.1.
+
 | Task type | Kind | Model tier | Tools | Output schema |
 |---|---|---|---|---|
 | `collect.<source>` | code | none | network (connector only) | RawDocument[] |
 | `extract` | LLM fn | fast | none | Observation[] |
 | `adjudicate_pair` | LLM fn | mid | none | verdict |
 | `triage` | LLM fn + code | mid | none | gates, initial questions |
-| `research.<qtype>` (qtype ∈ competitor, prospects, unit_cost, spend, market, channel, technical, defensibility) | agent | top | web_search, fetch_and_snapshot, kb_search, propose_question | Finding[] |
+| `research.<qtype>` (qtype ∈ competitor, prospects, unit_cost, spend, market, channel, technical, defensibility) | agent | top | WebSearch, fetch_and_snapshot, kb_search, propose_question | Finding[] |
 | `verify_entailment` | LLM fn | mid | none | supported/partial/unsupported |
 | `assess` | LLM fn + code | top | none | factor ranges, paths, First-10 plan, next experiments |
-| `debate_bull`, `debate_bear` | agent | top (independent sessions) | web_search, fetch_and_snapshot, kb_search | Argument[] (cited) |
+| `debate_bull`, `debate_bear` | agent | top (independent sessions) | WebSearch, fetch_and_snapshot, kb_search | Argument[] (cited) |
 | `debate_judge` | LLM fn | top (fresh session) | none | Ruling[], Objection[], Question[] |
 | `rank_pair` | LLM fn | top | none | choice + deciding evidence |
-| `baseline_b0` | LLM fn/agent | top | web_search | Card[] |
+| `baseline_b0` | LLM fn/agent | top | WebSearch | Card[] |
 | `digest` | code | none | none | markdown |
 
 ## 8. Data model
@@ -232,7 +238,7 @@ Postgres 16 + pgvector. All tables have `id` (UUID/ULID), `created_at`. LLM-prod
 | `feedback` | subject_type, subject_id, kind (rating/pairwise/grade), value, reason_code | |
 | `prediction` | experiment_id, factor_code, statement, probability, outcome, scored_at | |
 | `task` | type, opportunity_id, question_id, dedupe_key (unique), priority, state, lease_until, attempts, budget, inputs (jsonb), outputs (jsonb), error | |
-| `llm_call` | task_id, model, prompt_version, input_tokens, output_tokens, cost_usd, latency_ms, status | |
+| `llm_call` | task_id, model, prompt_version, claude_code_version, session_id, num_turns, est_cost_usd, usage (jsonb, raw from the CLI result), latency_ms, exit_code, status | `est_cost_usd` is the CLI's estimate, not a bill |
 | `budget_ledger` | scope (global/source/opportunity), period, units/usd_used, cap | |
 
 ## 9. Non-functional requirements
@@ -246,9 +252,10 @@ Postgres 16 + pgvector. All tables have `id` (UUID/ULID), `created_at`. LLM-prod
 | NFR-5 **Security** | Untrusted-content readers have no external-write capability or credentials; structured outputs only; egress denylist; secrets never in prompts |
 | NFR-6 **Privacy** | Minimal personal data; author identifiers hashed; prospects are organisations; retention policy for uncited raw documents |
 | NFR-7 **Compliance** | ToS register gating; no bypassing auth, paywalls, anti-bot measures |
-| NFR-8 **Cost control** | Daily caps enforced before admission; cost per card and per advanced opportunity reported |
-| NFR-9 **Model independence** | Thin LLM interface; per-task-type model config. Claude for every role by founder decision; the interface still permits another provider later |
-| NFR-10 **Operability** | Single-host `docker compose` deployment (Postgres, worker, scheduler); one-command backup |
+| NFR-8 **Capacity control** | Concurrency and daily-turn caps enforced before admission; rate-limit backoff; estimated cost per card and per advanced opportunity reported |
+| NFR-9 **Model independence** | One Go `claude` package wraps all calls; per-task-type model aliases in config. Claude for every role by founder decision; the interface still permits another provider later |
+| NFR-11 **Subscription auth hygiene** | Worker authenticates only with `CLAUDE_CODE_OAUTH_TOKEN`; startup fails if `ANTHROPIC_API_KEY` or other overriding credentials are present; `claude auth status` checked hourly; token-expiry warning 30 days ahead; Claude Code version pinned |
+| NFR-10 **Operability** | Single-host `docker compose` deployment (Postgres, worker with pinned Claude Code, scheduler, local embedding server, Metabase); one-command backup |
 
 ## 10. Acceptance criteria
 
@@ -265,7 +272,7 @@ Postgres 16 + pgvector. All tables have `id` (UUID/ULID), `created_at`. LLM-prod
 - **Decision:** usefulness rate, baseline win rate, advance rate (card → Validating), median days Qualified → Validating
 - **Validation:** experiments run, founder hours per experiment, Brier per factor, optimism bias
 - **Commercial:** time to first dollar, MRR, retention, margin, realised vs. expected value per founder-hour
-- **Cost:** $ and tokens per card, per advanced opportunity, per validated opportunity
+- **Cost:** turns and estimated cost per card, per advanced opportunity, per validated opportunity
 
 ## 12. Risks
 
@@ -280,33 +287,43 @@ Postgres 16 + pgvector. All tables have `id` (UUID/ULID), `created_at`. LLM-prod
 | ToS/legal exposure | ToS register gating; no restricted collection; founder gates F1–F4 |
 | Prompt injection | Capability separation; structured outputs; injection flags |
 | Founder overload | Attention caps; ≤ 3 cards; portfolio limits |
-| "Unlimited" inference not really unlimited | Budget ledger and caps from day one |
+| Subscription limits or auth expiry stall the pipeline | Turn caps sized to plan rate limits; backoff; auth health check and expiry warning; usage logged per call |
 
 ## 13. Decisions required from the founder before Phase 1
 
-1. **Language:** Python (recommended for ecosystem) or Go (review fluency). See `04` §7.
-2. **Which app marketplace** to use as the Phase 1 marketplace source (pick one with permitted access and a segment of interest).
-3. ~~**Employment check**~~: resolved. The founder doesn't need it, so the F1 gate is disabled in the founder profile.
-4. **Model access mechanism:** confirm whether usage is metered API or a subscription plan, and whether that plan permits unattended automated use at the intended volume.
-5. **Budgets:** daily caps for LLM and paid APIs.
-6. **Red-team provider:** whether to use a second model provider for adversarial review.
-7. **Stop rule:** explicitly accept the week-8 engine stop rule.
+All resolved:
+
+| # | Decision | Resolution |
+|---|---|---|
+| 1 | Language | **Go** (`04` §7) |
+| 2 | Phase 1 app marketplace | **Atlassian Marketplace** by default: B2B, paid apps, and close to the founder's dev/ops background. Its terms are checked in the ToS register before the connector is enabled; WordPress.org's plugin directory is the fallback |
+| 3 | Employment check | Not needed; gate F1 disabled |
+| 4 | Model access | Claude Enterprise subscription; founder confirms unattended 24/7 use is allowed. Calls go through headless Claude Code (`04` §7.1) |
+| 5 | Budgets | No $ caps on Claude; capacity limited by concurrency and daily turns |
+| 6 | Adversarial review | Claude only, as a Bull/Bear/Judge debate (`04` §4.1) |
+| 7 | Stop rule | **Accepted**: the week-8 engine stop rule in §10 applies |
 
 ## 14. Proposed repository layout (Phase 1)
 
 ```
-aoe/
-  connectors/        # one module per source + ToS register entries
+cmd/
+  aoe/               # CLI: digest, card, rate, pick, grade, decide, approve, eval
+  worker/            # pulls tasks from the queue and runs them
+  scheduler/         # nightly/weekly jobs, queue regeneration, wake conditions
+  aoe-mcp/           # local MCP server: fetch_and_snapshot, kb_search, propose_question
+internal/
+  claude/            # headless `claude -p` runner, flag builder, result parsing, auth check
+  connectors/        # one package per source + ToS register entries
   pipeline/          # extract, verify, normalise, embed, cluster, adjudicate
-  decide/            # triage, gates, factors, montecarlo, assess, rank
-  research/          # agent loop, tools (search, fetch_and_snapshot, kb_search)
-  scheduler/         # queue, admission control, budgets, saturation
+  decide/            # triage, gates, factors, montecarlo, assess, debate, rank
+  research/          # research task definitions and prompts wiring
+  queue/             # Postgres SKIP LOCKED queue, leases, dedupe, admission control
+  store/             # sqlc-generated queries, snapshot blob store
   report/            # digest + card templates
-  cli/               # aoe command
-  prompts/           # versioned prompt files per task type
-  eval/              # labelled pairs, gold sets, baseline runner, backtests
-  migrations/
-docs/                # this directory
+prompts/             # versioned prompt files per task type
+eval/                # labelled pairs, gold sets, baseline runner, backtests
+migrations/
 config/founder.yaml
+docs/                # this directory
 docker-compose.yml
 ```

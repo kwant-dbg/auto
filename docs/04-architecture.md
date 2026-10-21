@@ -149,12 +149,12 @@ The system is autonomous because **the queue is regenerated from state**, not fr
 
 1. **Every task references a question** (or a source collection job). No free-form "explore X" tasks.
 2. **Dedupe key** = `(task_type, opportunity_id, normalised_question_hash, evidence_snapshot_version)`. If an equivalent task completed against the same evidence, it is not re-admitted.
-3. **Earned budgets.** Each opportunity has a research budget (tokens, tool calls, $) that **grows with evidence tier**: e.g., Discovered: 1 unit; passes cheap gates: 5; has T1/T2 evidence: 20; in validation: 50. Weak ideas can't consume deep research.
+3. **Earned budgets.** Each opportunity has a research budget (agent turns and tool calls) that **grows with evidence tier**: e.g., Discovered: 1 unit; passes cheap gates: 5; has T1/T2 evidence: 20; in validation: 50. Weak ideas can't consume deep research.
 4. **Bounded delegation.** Agents may *propose* follow-up questions (max 3 per task). The admission controller accepts them only if they pass dedupe, are linked to a factor, and fit the budget. Max proposal depth = 2 from a human- or triage-originated question.
 5. **Information-gain stopping.** After each research task, the Assessor records whether any factor's range or gate status changed. **Two consecutive tasks on an opportunity with no material change** (no range narrowed by > 20%, no gate flipped) → the opportunity's desk research is marked *saturated*. Further progress requires an external experiment, which is escalated to the human.
 6. **Retry policy.** Max 2 retries with backoff; failures go to a dead-letter table and appear in the digest's "blocked" section.
 7. **Collection freshness.** Sources are fetched on their configured cadence *only*. A source whose last N fetches produced no new observations is automatically backed off (cadence doubles, up to a cap).
-8. **Global caps.** Max concurrent agent tasks, daily $ budget for paid APIs, daily token budget, max browser sessions. Exceeding a cap pauses admission, not the system.
+8. **Global caps.** Max concurrent agent tasks, max agent turns per day (sized to the subscription's rate limits), max browser sessions, and a $ cap for any paid data source. Exceeding a cap pauses admission, not the system.
 
 ---
 
@@ -173,24 +173,58 @@ The system is autonomous because **the queue is regenerated from state**, not fr
 
 ## 7. Recommended stack (one engineer + AI coding agents)
 
+**Founder decisions applied:** Go as the language; Claude for every model role, run on the founder's Claude Enterprise subscription, which the founder confirms allows unattended 24/7 use.
+
 | Concern | Choice | Rationale |
 |---|---|---|
-| Language | **Python 3.12+** for the pipeline and agents | Best ecosystem for LLM SDKs (including agent SDKs), embeddings, clustering (scikit-learn/HDBSCAN), data wrangling (polars/pandas), and notebook-driven evaluation. This system is a *data and research pipeline*, not a high-throughput service. Go is a fine alternative if you value review fluency over ecosystem; the architecture doesn't depend on it. |
-| Database | **PostgreSQL 16+ with pgvector** | Single store for snapshots metadata, entities, queue, vectors, budgets |
-| Queue | Postgres `SKIP LOCKED` table (or a thin library) | See §6 |
-| Scheduling | System cron / a single scheduler loop process | Nightly and weekly jobs; event triggers are queue inserts |
-| LLM access | Provider SDK behind a **thin internal interface**: `complete(task_type, messages, schema) → (json, usage)` and `run_agent(task_type, tools, budget) → transcript` | Model independence where it pays (Red Team on a different family; cheap tier for extraction) without a heavy abstraction layer |
-| Agentic research | An agent SDK or a hand-rolled tool loop, with an allowlisted toolset: `web_search`, `fetch_and_snapshot`, `kb_search`, `propose_question` | Keep tools read-only |
-| Web search | A commercial search API with a budget | Cheaper and more reliable than headless browsing; browser only where needed and permitted |
+| Language | **Go** (1.24+) for everything: connectors, pipeline, scheduler, CLI, tool server | Founder's strongest language, so review is fast and the code stays maintainable. The data-science gaps (clustering, Monte Carlo) are small enough to write directly (see rows below). |
+| Database | **PostgreSQL 16+ with pgvector** (`pgx` driver, plain SQL + `sqlc`) | Single store for snapshot metadata, entities, queue, vectors, ledgers |
+| Queue | Postgres `SKIP LOCKED` table (or River, a Go job queue on Postgres) | See §6 |
+| Scheduling | A single scheduler loop process (or system cron) | Nightly and weekly jobs; event triggers are queue inserts |
+| LLM access | **Claude Code in headless mode (`claude -p`) run as a subprocess** from a Go `claude` package, authenticated with the subscription (see §7.1) | No official Go Agent SDK exists, and the Go Messages-API SDK is for metered API keys. Headless Claude Code is the supported route for other languages, and it brings the agent loop, WebSearch and structured output with it. |
+| Structured output | `--output-format json --json-schema <schema>`; the Go side validates `structured_output` again and treats a missing value as a failed task | Schema-constrained extraction without a custom tool loop |
+| Custom tools | A **local MCP server written in Go** (the official MCP Go SDK) exposing `fetch_and_snapshot`, `kb_search`, `propose_question`, passed with `--mcp-config` and `--strict-mcp-config` | Keeps tools read-only and under our control |
+| Web search | Claude Code's built-in **WebSearch** | Included with the subscription; no separate search API. *Week-1 check:* confirm it is available under subscription auth in headless mode, and fall back to a paid search API behind the same MCP server if it isn't. |
+| Web fetch | **Our own `fetch_and_snapshot` MCP tool**, not the built-in WebFetch | The built-in WebFetch passes pages through a separate model call, so its output is a summary, and verbatim span checks need the raw page. Disable WebFetch for every task. |
+| Embeddings | A **local open-source embedding model** served over HTTP (e.g., via Ollama or a text-embeddings server), called from Go | Claude does not provide embeddings; a local model costs nothing per call and keeps vectors stable. Pin the model and store `embedding_model` per vector. |
+| Clustering | pgvector ANN attach + LLM adjudication (online); weekly **agglomerative clustering** over normalised statements, implemented in Go | Avoids a Python dependency; at tens of thousands of observations a straightforward implementation is fast enough |
+| Monte Carlo | Plain Go (`math/rand/v2`, triangular sampling, ~10k draws) | Milliseconds; no library needed |
 | Blob storage | Local filesystem (content-addressed by hash) → S3-compatible later | Snapshots can be large |
 | Reports | Markdown files committed to a private git repo (or a notes app) + email/chat notification | No dashboard needed for MVP |
-| Ad-hoc exploration UI | **Datasette** or **Metabase** over Postgres (read-only) | Evidence navigation and filtering for free |
+| Ad-hoc exploration UI | **Metabase** (or Datasette) over Postgres, read-only | Evidence navigation and filtering for free; runs as a container, so no Python in the codebase |
+| Evaluation analysis | SQL views + `aoe eval` CLI reports | Keeps one language; a notebook is optional for one-off analysis |
 | Approvals | CLI (`aoe approve <id>`) + optional chat-bot buttons | Simple, auditable |
 | Sandboxing (Phase 4) | Rootless containers, no credentials mounted, network egress allowlist (package registries only), CPU/mem/time limits; consider gVisor/Firecracker if running untrusted third-party code | v1.0 Q14 |
-| Observability | Structured JSON logs; `task` and `llm_call` tables *are* the metrics (tokens, $, latency, outcome); a few SQL views | No Prometheus/Grafana until there is a service to monitor |
-| Deployment | Single VM or home server with `docker compose` (Postgres + worker + scheduler) | You can move it to Kubernetes later; there's no reason to start there |
+| Observability | Structured JSON logs (`log/slog`); `task` and `llm_call` tables *are* the metrics (turns, estimated cost, latency, outcome); a few SQL views | No Prometheus/Grafana until there is a service to monitor |
+| Deployment | Single VM or home server with `docker compose` (Postgres, worker, scheduler, embedding server, Metabase) | You can move it to Kubernetes later; there's no reason to start there |
 
-**Deliberately not used initially:** Kubernetes, Temporal, Kafka, graph DB, vector DB separate from Postgres, React dashboard, multi-provider routing gateways, LangChain-style orchestration frameworks.
+**Deliberately not used initially:** Kubernetes, Temporal, Kafka, graph DB, vector DB separate from Postgres, React dashboard, multi-provider routing gateways, LangChain-style orchestration frameworks, a second model provider.
+
+### 7.1 Driving Claude from Go
+
+All model calls go through one Go package with two functions, `Complete(taskType, prompt, schema)` and `RunAgent(taskType, prompt, tools, limits)`. Both build a `claude -p` command line from the task type's config:
+
+| Setting | Extraction / adjudication / judging (no tools) | Research / debate (tools) |
+|---|---|---|
+| Output | `--output-format json --json-schema <schema>` | same |
+| Built-in tools | `--tools ""` (none) | `--tools "WebSearch"` |
+| Allowed tools | none | `--allowedTools "WebSearch,mcp__aoe__fetch_and_snapshot,mcp__aoe__kb_search,mcp__aoe__propose_question"` |
+| MCP | `--strict-mcp-config` with an empty config | `--mcp-config aoe-mcp.json --strict-mcp-config` |
+| Permissions | `--permission-mode dontAsk` (anything not pre-approved is denied) | same |
+| Limits | `--max-turns 3` | `--max-turns` from the task's research budget |
+| Model | `--model <alias from config>` | same |
+| Prompt | `--system-prompt-file prompts/<task>/<version>.md` | same |
+| Session | `--no-session-persistence` (every task starts fresh) | same; debate roles are separate processes by construction |
+
+Operational rules:
+
+1. **Authentication.** Run `claude setup-token` once and give the worker the token as `CLAUDE_CODE_OAUTH_TOKEN`. The worker environment must **not** contain `ANTHROPIC_API_KEY`, `ANTHROPIC_AUTH_TOKEN`, an `apiKeyHelper`, or cloud-provider switches: any of these silently takes precedence and moves the calls to metered API billing. Don't use `--bare`, which ignores the subscription token.
+2. **Health check.** `claude auth status` runs on worker start and hourly; it must report the OAuth token method. The token lasts about a year, so the digest warns 30 days before expiry.
+3. **Pin versions.** Pin the Claude Code version in the worker image, because several flags are version-gated. Upgrade deliberately, re-running the evaluation suite (`07` §8).
+4. **Fixed working directory.** Run every call from an empty, dedicated working directory, so no repository hooks, `CLAUDE.md` or `.mcp.json` leak into tasks.
+5. **Parse defensively.** Read stdout even on a non-zero exit; treat a missing `structured_output` as a failure; retry rate-limit errors with backoff (subscription plans have rate limits even when there's no per-call cost).
+6. **Timeouts.** Send SIGINT at the task deadline, then SIGKILL after a grace period.
+7. **Usage logging.** Record turns, duration and the CLI's `total_cost_usd` in `llm_call`. Under the subscription that figure is an *estimate*, not a bill, but it is still the right unit for comparing pipeline variants and for cost-per-opportunity metrics.
 
 ---
 
@@ -210,14 +244,16 @@ Treat all collected content as hostile (prompt injection is the main threat):
 
 ## 9. Model strategy
 
+All roles use Claude, selected per task type with `--model` aliases in config, so newer models can be adopted without code changes.
+
 | Task | Model tier | Why |
 |---|---|---|
-| Extraction, normalisation | Fast/cheap tier, batched | High volume, schema-constrained |
-| Dedupe adjudication | Mid tier | Pairwise judgments, moderate volume |
-| Research agent | Top tier | Long-horizon tool use, synthesis |
+| Extraction, normalisation | Fast tier (e.g., `haiku`) | High volume, schema-constrained |
+| Dedupe adjudication | Mid tier (e.g., `sonnet`) | Pairwise judgments, moderate volume |
+| Research agent | Top tier (e.g., `opus`) | Long-horizon tool use, synthesis |
 | Assessor | Top tier | Judgment with citations |
 | Debate (Bull, Bear, Judge) | Top tier, three independent sessions | Reduce process bias; see §4.1 |
 | Pairwise ranking | Top tier, both orders | Position-bias cancellation |
-| Embeddings | One embedding model, pinned version | Changing it requires re-embedding; store `embedding_model` on every vector |
+| Embeddings | Local open-source model, pinned version | Changing it requires re-embedding; store `embedding_model` on every vector |
 
-Even with "unlimited" usage, record the token and $ cost of every call in `llm_call`. The cost-per-advanced-opportunity metric depends on it, and so does staying inside any plan limits.
+Even without a per-call cost, record the turns and estimated cost of every call in `llm_call`. Throughput is bounded by the plan's rate limits and by worker concurrency, so the scheduler's caps are expressed in **concurrent tasks and turns per day**, not dollars.

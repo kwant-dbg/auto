@@ -2,7 +2,7 @@
 
 Pre-implementation strategy and architecture for a personal system that finds, evaluates, and validates commercially viable software opportunities for a solo technical founder.
 
-**Status:** design review complete. Ready for Phase 0 (one-week manual run), then Phase 1 build. No implementation code yet.
+**Status:** design review complete and founder decisions recorded (Go; Claude Enterprise subscription via headless Claude Code; Claude-only Bull/Bear/Judge debate; Atlassian Marketplace as first marketplace source; week-8 stop rule accepted). Ready for Phase 0 (one-week manual run), then Phase 1 build. No implementation code yet.
 
 ## The core thesis
 
