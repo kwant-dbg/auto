@@ -52,6 +52,13 @@ triage:
   min_independent_origins: 2
   max_per_day: 40
 
+# Research agents answer opportunities' open questions, kill questions
+# first, within each opportunity's earned budget (SCH-3).
+research:
+  max_per_day: 30
+  max_concurrent: 3
+  max_turns: 30
+
 founder_profile: config/founder.yaml
 
 # Local open-source embedding model (docs/04 §7). Empty provider disables

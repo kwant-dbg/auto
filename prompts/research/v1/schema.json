@@ -1,0 +1,65 @@
+{
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["status", "answer", "findings", "gate_verdict", "follow_up_questions"],
+  "properties": {
+    "status": {"type": "string", "enum": ["answered", "partial", "needs_human", "cannot_answer"]},
+    "answer": {"type": "string", "maxLength": 1500},
+    "findings": {
+      "type": "array",
+      "maxItems": 12,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["key", "claim", "stance", "bears_on", "citations"],
+        "properties": {
+          "key": {"type": "string", "maxLength": 10},
+          "claim": {"type": "string", "minLength": 10, "maxLength": 500},
+          "stance": {"type": "string", "enum": ["supports", "contradicts", "neutral"]},
+          "bears_on": {"type": "string", "maxLength": 20},
+          "citations": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 4,
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["document_id", "quote"],
+              "properties": {
+                "document_id": {"type": "integer"},
+                "quote": {"type": "string", "minLength": 10, "maxLength": 1200}
+              }
+            }
+          }
+        }
+      }
+    },
+    "gate_verdict": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["code", "status", "rationale", "finding_keys"],
+      "properties": {
+        "code": {"type": "string", "maxLength": 10},
+        "status": {"type": "string", "enum": ["PASS", "FAIL", "UNKNOWN", "NONE"]},
+        "rationale": {"type": "string", "maxLength": 500},
+        "finding_keys": {"type": "array", "items": {"type": "string"}, "maxItems": 8}
+      }
+    },
+    "follow_up_questions": {
+      "type": "array",
+      "maxItems": 3,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["text", "linked_code", "kind", "p_kill", "cost_minutes"],
+        "properties": {
+          "text": {"type": "string", "minLength": 10, "maxLength": 400},
+          "linked_code": {"type": "string", "maxLength": 20},
+          "kind": {"type": "string", "enum": ["kill", "standard"]},
+          "p_kill": {"type": "number", "minimum": 0, "maximum": 1},
+          "cost_minutes": {"type": "integer", "minimum": 1, "maximum": 600}
+        }
+      }
+    }
+  }
+}

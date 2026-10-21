@@ -1,0 +1,52 @@
+{
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["rulings", "objections", "kill_questions", "summary"],
+  "properties": {
+    "rulings": {
+      "type": "array",
+      "maxItems": 8,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["claim", "verdict", "rationale", "argument_keys"],
+        "properties": {
+          "claim": {"type": "string", "maxLength": 400},
+          "verdict": {"type": "string", "enum": ["bull_holds", "bear_holds", "unresolved"]},
+          "rationale": {"type": "string", "maxLength": 400},
+          "argument_keys": {"type": "array", "items": {"type": "string"}, "maxItems": 6}
+        }
+      }
+    },
+    "objections": {
+      "type": "array",
+      "maxItems": 6,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["text", "severity", "argument_keys"],
+        "properties": {
+          "text": {"type": "string", "maxLength": 400},
+          "severity": {"type": "integer", "minimum": 1, "maximum": 3},
+          "argument_keys": {"type": "array", "items": {"type": "string"}, "maxItems": 6}
+        }
+      }
+    },
+    "kill_questions": {
+      "type": "array",
+      "maxItems": 4,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["text", "linked_code", "p_kill", "cost_minutes"],
+        "properties": {
+          "text": {"type": "string", "maxLength": 400},
+          "linked_code": {"type": "string", "maxLength": 20},
+          "p_kill": {"type": "number", "minimum": 0, "maximum": 1},
+          "cost_minutes": {"type": "integer", "minimum": 1, "maximum": 600}
+        }
+      }
+    },
+    "summary": {"type": "string", "maxLength": 800}
+  }
+}

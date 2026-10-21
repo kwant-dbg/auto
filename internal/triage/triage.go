@@ -16,6 +16,7 @@ import (
 
 	"github.com/kwant-dbg/auto/internal/claude"
 	"github.com/kwant-dbg/auto/internal/founder"
+	"github.com/kwant-dbg/auto/internal/lifecycle"
 	"github.com/kwant-dbg/auto/internal/llm"
 	"github.com/kwant-dbg/auto/internal/queue"
 	"github.com/kwant-dbg/auto/internal/store"
@@ -268,12 +269,11 @@ func Decide(addressable string, gates map[string]Gate) (state, reason string) {
 // killQuestions are the cheap disconfirming checks every qualified
 // opportunity gets first, ordered by P(kill) ÷ cost (docs/05 §3).
 func killQuestions(segment string) []modelQuestion {
-	return []modelQuestion{
-		{Text: fmt.Sprintf("Is there an incumbent with a strong rating that already serves %s for this job at a comparable price?", segment), LinkedCode: "M4", Kind: "kill", PKill: 0.4, CostMinutes: 10},
-		{Text: fmt.Sprintf("Can we find 50 named organisations in %s with public contact paths?", segment), LinkedCode: "M3", Kind: "kill", PKill: 0.3, CostMinutes: 15},
-		{Text: "Does running the core workflow on a sample input with current models cost less than 40% of a plausible price?", LinkedCode: "M5", Kind: "kill", PKill: 0.15, CostMinutes: 10},
-		{Text: "Is there a critical dependency (a capability, an integration, API access) that doesn't exist or is prohibited by terms?", LinkedCode: "M6", Kind: "kill", PKill: 0.15, CostMinutes: 10},
+	var out []modelQuestion
+	for _, q := range lifecycle.KillQuestions(segment) {
+		out = append(out, modelQuestion{Text: q.Text, LinkedCode: q.LinkedCode, Kind: q.Kind, PKill: q.PKill, CostMinutes: q.CostMinutes})
 	}
+	return out
 }
 
 // Run triages one problem.

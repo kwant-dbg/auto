@@ -11,10 +11,13 @@ import (
 	"time"
 
 	"github.com/kwant-dbg/auto/internal/app"
+	"github.com/kwant-dbg/auto/internal/assess"
 	"github.com/kwant-dbg/auto/internal/config"
+	"github.com/kwant-dbg/auto/internal/debate"
 	"github.com/kwant-dbg/auto/internal/embed"
 	"github.com/kwant-dbg/auto/internal/jobs"
 	"github.com/kwant-dbg/auto/internal/problems"
+	"github.com/kwant-dbg/auto/internal/research"
 	"github.com/kwant-dbg/auto/internal/store"
 	"github.com/kwant-dbg/auto/internal/triage"
 )
@@ -93,5 +96,16 @@ func runTick(ctx context.Context, cfg *config.Config, st *store.Store, log *slog
 		} else if n > 0 {
 			log.Info("triage enqueued", "count", n)
 		}
+	}
+	if n, err := research.Schedule(ctx, st, cfg.Research); err != nil {
+		log.Error("schedule research", "err", err)
+	} else if n > 0 {
+		log.Info("research enqueued", "count", n)
+	}
+	if _, err := assess.Schedule(ctx, st, 5); err != nil {
+		log.Error("schedule assessment", "err", err)
+	}
+	if _, err := debate.Schedule(ctx, st, 2); err != nil {
+		log.Error("schedule debate", "err", err)
 	}
 }

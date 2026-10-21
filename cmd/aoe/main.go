@@ -54,7 +54,12 @@ Problems and opportunities
   problem <id>                                  one problem and its evidence
   triage [--problem ID] [--limit N]             triage eligible problems now (or one problem)
   opportunities [--state S]                     opportunities with gates and open questions
-  opportunity <id>                              one opportunity in full
+  opportunity <id>                              one opportunity in full: gates, questions, findings, assessment, debate
+
+Research and evaluation (agents; use the subscription)
+  research [--question ID | --opportunity ID] [--limit N]   answer open questions now
+  assess <opportunity>                          ranged factors, Monte Carlo MRR, weakest link
+  debate <opportunity>                          Bull vs Bear, verified, judged
 
 Operations
   stats                           pipeline health: documents, extraction, rejection rate, observations by tier
@@ -130,6 +135,12 @@ func run(ctx context.Context, args []string) error {
 		return opportunitiesCmd(ctx, st, rest)
 	case "opportunity":
 		return opportunityCmd(ctx, st, rest)
+	case "research":
+		return researchCmd(ctx, cfg, st, rest)
+	case "assess":
+		return assessCmd(ctx, cfg, st, rest)
+	case "debate":
+		return debateCmd(ctx, cfg, st, rest)
 	case "pause", "resume":
 		if err := st.SetPaused(ctx, cmd == "pause"); err != nil {
 			return err

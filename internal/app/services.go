@@ -8,16 +8,20 @@ import (
 	"path/filepath"
 	"time"
 
+	"github.com/kwant-dbg/auto/internal/assess"
 	"github.com/kwant-dbg/auto/internal/claude"
 	"github.com/kwant-dbg/auto/internal/config"
+	"github.com/kwant-dbg/auto/internal/debate"
 	"github.com/kwant-dbg/auto/internal/embed"
 	"github.com/kwant-dbg/auto/internal/extract"
 	"github.com/kwant-dbg/auto/internal/founder"
 	"github.com/kwant-dbg/auto/internal/jobs"
 	"github.com/kwant-dbg/auto/internal/llm"
 	"github.com/kwant-dbg/auto/internal/problems"
+	"github.com/kwant-dbg/auto/internal/research"
 	"github.com/kwant-dbg/auto/internal/store"
 	"github.com/kwant-dbg/auto/internal/triage"
+	"github.com/kwant-dbg/auto/internal/verify"
 	"github.com/kwant-dbg/auto/internal/worker"
 )
 
@@ -84,10 +88,13 @@ func RegisterHandlers(ctx context.Context, w *worker.Worker, cfg *config.Config,
 		w.Handle(problems.ConsolidateTaskType, cl.ConsolidateHandle)
 		tr, err := Triager(cfg, st, client)
 		if err != nil {
-			log.Error("triage disabled: founder profile", "err", err)
+			log.Error("triage and assessment disabled: founder profile", "err", err)
 		} else {
 			w.Handle(triage.TaskType, tr.Handle)
+			w.Handle(assess.TaskType, Assessor(cfg, st, client, tr.Founder).Handle)
 		}
+		w.Handle(research.TaskType, Researcher(cfg, st, client).Handle)
+		w.Handle(debate.TaskType, Debater(cfg, st, client).Handle)
 		go recheck(ctx, runner, log)
 	}
 
@@ -135,6 +142,26 @@ func Triager(cfg *config.Config, st *store.Store, client *llm.Client) (*triage.T
 		return nil, err
 	}
 	return &triage.Triager{Store: st, LLM: client, Model: cfg.Models.Mid, Founder: prof}, nil
+}
+
+// Verifier builds the claim verifier (mid-tier model for entailment).
+func Verifier(cfg *config.Config, st *store.Store, client *llm.Client) *verify.Verifier {
+	return &verify.Verifier{Store: st, LLM: client, Model: cfg.Models.Mid}
+}
+
+// Researcher builds the research agent (top-tier model).
+func Researcher(cfg *config.Config, st *store.Store, client *llm.Client) *research.Researcher {
+	return &research.Researcher{Store: st, LLM: client, Verifier: Verifier(cfg, st, client), Model: cfg.Models.Top, MaxTurns: cfg.Research.MaxTurns}
+}
+
+// Assessor builds the assessor (top-tier model).
+func Assessor(cfg *config.Config, st *store.Store, client *llm.Client, prof *founder.Profile) *assess.Assessor {
+	return &assess.Assessor{Store: st, LLM: client, Model: cfg.Models.Top, Founder: prof}
+}
+
+// Debater builds the debate (top-tier model for Bull, Bear and Judge).
+func Debater(cfg *config.Config, st *store.Store, client *llm.Client) *debate.Debater {
+	return &debate.Debater{Store: st, LLM: client, Verifier: Verifier(cfg, st, client), Model: cfg.Models.Top}
 }
 
 // ExtractOptions maps config to scheduling options.

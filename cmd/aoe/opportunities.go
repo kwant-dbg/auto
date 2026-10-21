@@ -325,5 +325,8 @@ func opportunityCmd(ctx context.Context, st *store.Store, args []string) error {
 		}
 		fmt.Printf("  [%s %s %s] %s  (P(kill) %.2f, ~%.0f min)\n", status, kind, code, text, pk, cost)
 	}
-	return qrows.Err()
+	if err := qrows.Err(); err != nil {
+		return err
+	}
+	return dossierSections(ctx, st, id)
 }
