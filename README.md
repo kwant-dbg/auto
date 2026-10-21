@@ -64,6 +64,8 @@ AOE succeeds if the founder spends their few weekly hours on **opportunities wit
 | Assessor: ranged factors with citations, wide priors for unsupported factors, seeded Monte Carlo (P10/P50/P90 MRR@12m), weakest link | `internal/assess` | ✅ tested |
 | Debate: Bull and Bear in parallel independent sessions, two cited rounds, unsupported arguments struck, fresh Judge | `internal/debate` | ✅ tested |
 
+**Live results, week 4.** Research killed both Jira opportunities that reached it on their cheapest check. *Bulk-cloning Jira projects* (opportunity 10) has a verified 4.5★, 11.6k-install, Enterprise Certified incumbent that Atlassian's own help article recommends. *Jira issue templates* (opportunity 26) qualified once research verified its buyer, then failed M4 on two 4.8–4.9★ Cloud incumbents. A post-mortem assessment of 26 gave P50 MRR@12m of $297 (P(≥$1k) 10%, weakest link: price), and the debate upheld the kill 5–1, with the 2029 Data Center end-of-life migration left as the one open thread.
+
 **Next (week 5):** the weekly digest and opportunity cards, CLI feedback (ratings, pairwise picks, finding grades), the one-shot-prompt baseline for the blind comparison, and the first full weekly cycle.
 
 ### Useful commands
