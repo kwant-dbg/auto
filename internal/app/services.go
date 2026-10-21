@@ -1,0 +1,117 @@
+package app
+
+import (
+	"context"
+	"log/slog"
+	"os"
+	"os/exec"
+	"path/filepath"
+	"time"
+
+	"github.com/kwant-dbg/auto/internal/claude"
+	"github.com/kwant-dbg/auto/internal/config"
+	"github.com/kwant-dbg/auto/internal/embed"
+	"github.com/kwant-dbg/auto/internal/extract"
+	"github.com/kwant-dbg/auto/internal/jobs"
+	"github.com/kwant-dbg/auto/internal/llm"
+	"github.com/kwant-dbg/auto/internal/store"
+	"github.com/kwant-dbg/auto/internal/worker"
+)
+
+// NewLLM checks Claude Code (version pin, subscription auth), writes the MCP
+// config for AOE's tools and returns the gateway all model calls go through.
+func NewLLM(ctx context.Context, cfg *config.Config, st *store.Store, log *slog.Logger) (*llm.Client, *claude.Runner, error) {
+	runner, err := claude.New(cfg.Claude)
+	if err != nil {
+		return nil, nil, err
+	}
+	health, err := runner.Check(ctx)
+	if err != nil {
+		return nil, nil, err
+	}
+	if bin, err := mcpBinary(cfg); err != nil {
+		log.Warn("aoe-mcp not found; agent tasks will have no AOE tools", "err", err)
+	} else {
+		cfgPath, _ := filepath.Abs(ConfigPath())
+		env := map[string]string{"AOE_CONFIG": cfgPath, "AOE_DATABASE_URL": cfg.DatabaseURL}
+		if t := os.Getenv("GITHUB_TOKEN"); t != "" {
+			env["GITHUB_TOKEN"] = t
+		}
+		if _, err := runner.WriteMCPConfig(bin, env); err != nil {
+			return nil, nil, err
+		}
+	}
+	return &llm.Client{
+		Runner: runner, Store: st, MaxTurnsPerDay: cfg.Limits.MaxAgentTurnsPerDay, ClaudeCodeVersion: health.Version,
+	}, runner, nil
+}
+
+func mcpBinary(cfg *config.Config) (string, error) {
+	name := cfg.Claude.MCPBinary
+	if name == "" {
+		name = "aoe-mcp"
+	}
+	if p, err := exec.LookPath(name); err == nil {
+		return filepath.Abs(p)
+	}
+	// Next to the running binary (e.g. bin/worker and bin/aoe-mcp).
+	if self, err := os.Executable(); err == nil {
+		p := filepath.Join(filepath.Dir(self), filepath.Base(name))
+		if _, err := os.Stat(p); err == nil {
+			return p, nil
+		}
+	}
+	return exec.LookPath(name)
+}
+
+// RegisterHandlers wires every task type the worker can run. Collection
+// always works; model-backed tasks need a healthy Claude Code, and embedding
+// needs a configured embedding server.
+func RegisterHandlers(ctx context.Context, w *worker.Worker, cfg *config.Config, st *store.Store, log *slog.Logger) {
+	w.Handle(jobs.TaskCollect, jobs.CollectHandler(st, CollectOptions(cfg)))
+
+	client, runner, err := NewLLM(ctx, cfg, st, log)
+	if err != nil {
+		log.Error("Claude Code check failed; model-backed tasks are disabled until it passes", "err", err)
+	} else {
+		ex := &extract.Extractor{Store: st, LLM: client, Model: cfg.Models.Fast}
+		w.Handle(extract.TaskType, ex.Handle)
+		go recheck(ctx, runner, log)
+	}
+
+	if cfg.Embeddings.Enabled() {
+		ec, err := embed.New(cfg.Embeddings)
+		if err != nil {
+			log.Error("embeddings disabled", "err", err)
+		} else {
+			sw := &embed.Sweeper{Store: st, Client: ec}
+			w.Handle(embed.TaskType, sw.Handle)
+		}
+	}
+}
+
+// recheck repeats the auth and version check hourly (NFR-11), so an expired
+// token shows up in the logs promptly.
+func recheck(ctx context.Context, r *claude.Runner, log *slog.Logger) {
+	t := time.NewTicker(time.Hour)
+	defer t.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-t.C:
+			if _, err := r.Check(ctx); err != nil {
+				log.Error("Claude Code health check failed", "err", err)
+			}
+		}
+	}
+}
+
+// ExtractOptions maps config to scheduling options.
+func ExtractOptions(cfg *config.Config) jobs.ExtractOptions {
+	return jobs.ExtractOptions{
+		MaxQueuedTasks:   cfg.Extraction.MaxQueuedTasks,
+		MaxDocsPerBatch:  cfg.Extraction.MaxDocsPerBatch,
+		MaxBytesPerBatch: cfg.Extraction.MaxBytesPerBatch,
+	}
+}

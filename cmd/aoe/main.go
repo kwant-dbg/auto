@@ -40,7 +40,14 @@ Labour-market data (discovery lens 1)
   import ai-usage --release R --task-col C --value-col C [--metric M] <file.csv>
   seeds [--limit N] [--naics PREFIX] [--cross-industry]
 
+Evidence
+  extract [--dry-run] [--source S] [--limit N]   extract one batch now (--dry-run prints the prompt only)
+  observations [--limit N] [--tier T]           recent verified observations
+  kb <query>                                    search collected evidence (the agents' kb_search)
+  fetch <url>                                   snapshot a public page (the agents' fetch_and_snapshot)
+
 Operations
+  stats                           pipeline health: documents, extraction, rejection rate, observations by tier
   tasks                           queue summary and recent dead letters
   pause | resume                  kill switch for all admission and actions
 
@@ -88,6 +95,16 @@ func run(ctx context.Context, args []string) error {
 		return seedsCmd(ctx, st, rest)
 	case "tasks":
 		return tasksCmd(ctx, st)
+	case "stats":
+		return statsCmd(ctx, st)
+	case "extract":
+		return extractCmd(ctx, cfg, st, rest)
+	case "observations":
+		return observationsCmd(ctx, st, rest)
+	case "kb":
+		return kbCmd(ctx, cfg, st, rest)
+	case "fetch":
+		return fetchCmd(ctx, cfg, st, rest)
 	case "pause", "resume":
 		if err := st.SetPaused(ctx, cmd == "pause"); err != nil {
 			return err

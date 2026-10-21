@@ -106,3 +106,30 @@ func (r *Runner) ProbeWebSearch(ctx context.Context, model string) (bool, Result
 	}
 	return out.WebsearchWorked, res, nil
 }
+
+// WriteMCPConfig writes the MCP config that gives agent tasks AOE's tools
+// (the aoe-mcp server over stdio) and points the runner at it. env is passed
+// to the server; the file is private because it can contain the database URL.
+func (r *Runner) WriteMCPConfig(command string, env map[string]string) (string, error) {
+	path := r.cfg.WorkDir + "/.aoe-mcp.json"
+	cfg := map[string]any{"mcpServers": map[string]any{
+		"aoe": map[string]any{"type": "stdio", "command": command, "args": []string{}, "env": env},
+	}}
+	b, err := json.MarshalIndent(cfg, "", "  ")
+	if err != nil {
+		return "", err
+	}
+	if err := os.WriteFile(path, b, 0o600); err != nil {
+		return "", err
+	}
+	r.cfg.MCPConfig = path
+	return path, nil
+}
+
+// AOETools are the MCP tool names agents may be allowed to call.
+var AOETools = []string{
+	"mcp__aoe__fetch_and_snapshot",
+	"mcp__aoe__kb_search",
+	"mcp__aoe__search_hn",
+	"mcp__aoe__search_github_issues",
+}

@@ -11,6 +11,8 @@ import (
 	"time"
 
 	"github.com/kwant-dbg/auto/internal/app"
+	"github.com/kwant-dbg/auto/internal/config"
+	"github.com/kwant-dbg/auto/internal/embed"
 	"github.com/kwant-dbg/auto/internal/jobs"
 	"github.com/kwant-dbg/auto/internal/store"
 )
@@ -33,7 +35,7 @@ func main() {
 	tick := time.NewTicker(cfg.Scheduler.Tick)
 	defer tick.Stop()
 	for {
-		runTick(ctx, st, log)
+		runTick(ctx, cfg, st, log)
 		select {
 		case <-ctx.Done():
 			log.Info("scheduler stopped")
@@ -43,7 +45,7 @@ func main() {
 	}
 }
 
-func runTick(ctx context.Context, st *store.Store, log *slog.Logger) {
+func runTick(ctx context.Context, cfg *config.Config, st *store.Store, log *slog.Logger) {
 	paused, err := st.Paused(ctx)
 	if err != nil {
 		log.Error("read pause flag", "err", err)
@@ -59,5 +61,18 @@ func runTick(ctx context.Context, st *store.Store, log *slog.Logger) {
 	}
 	if n > 0 {
 		log.Info("collections enqueued", "count", n)
+	}
+	if cfg.Extraction.On() {
+		n, err := jobs.ScheduleExtraction(ctx, st, app.ExtractOptions(cfg))
+		if err != nil {
+			log.Error("schedule extraction", "err", err)
+		} else if n > 0 {
+			log.Info("extraction batches enqueued", "count", n)
+		}
+	}
+	if cfg.Embeddings.Enabled() {
+		if _, err := embed.Schedule(ctx, st); err != nil {
+			log.Error("schedule embedding", "err", err)
+		}
 	}
 }

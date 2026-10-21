@@ -33,7 +33,8 @@ type Config struct {
 	WorkDir     string        `yaml:"workdir"`     // empty, dedicated directory for every call
 	VersionPin  string        `yaml:"version_pin"` // e.g. "2.1.306"; empty skips the check
 	Grace       time.Duration `yaml:"grace"`       // SIGINT → SIGKILL delay, default 15s
-	MCPConfig   string        `yaml:"mcp_config"`  // used by agent tasks that need AOE tools
+	MCPConfig   string        `yaml:"mcp_config"`  // written by WriteMCPConfig for agent tasks that need AOE tools
+	MCPBinary   string        `yaml:"mcp_binary"`  // path of aoe-mcp; default "aoe-mcp" on PATH
 	EmptyMCPCfg string        `yaml:"-"`           // set by New: a config with no servers
 }
 

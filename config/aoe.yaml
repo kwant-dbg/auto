@@ -7,7 +7,7 @@ claude:
   workdir: data/claude-workdir   # empty and dedicated: no repo hooks, CLAUDE.md or .mcp.json leak in
   version_pin: "2.1.306"         # upgrade deliberately, then re-run the eval suite
   grace: 15s                     # SIGINT → SIGKILL on timeout
-  mcp_config: ""                 # set when the aoe-mcp tool server exists (week 2)
+  mcp_binary: aoe-mcp            # research tools server; the worker writes the MCP config for it
 
 worker:
   concurrency: 4
@@ -29,6 +29,20 @@ http:
   user_agent: "aoe-research/0.1 (personal market research)"
   timeout: 60s
 
+extraction:
+  max_queued_tasks: 8           # backpressure on the daily turn budget
+  max_docs_per_batch: 20
+  max_bytes_per_batch: 60000
+
+# Local open-source embedding model (docs/04 §7). Empty provider disables
+# embeddings; docker-compose sets these for its bundled Ollama service.
+embeddings:
+  provider: ${AOE_EMBED_PROVIDER}   # ollama | tei
+  url: ${AOE_EMBED_URL}             # e.g. http://ollama:11434
+  model: nomic-embed-text
+  dimensions: 768
+  batch_size: 64
+
 # ToS register (SRC-2). A source can't be enabled without an entry for its type.
 tos:
   - source_type: usaspending_awards
@@ -43,6 +57,38 @@ tos:
       Entry drafted from general knowledge, not a line-by-line terms review; confirm
       before relying on it. No published rate limit found, so 60/min is a conservative default.
 
+  - source_type: app_marketplace
+    access_method: official_api
+    terms_url: https://developer.atlassian.com/platform/marketplace/rest/v2/
+    reviewed_at: "2026-10-21"
+    allowed_use: >-
+      Public marketplace listings, pricing and reviews (Atlassian Marketplace REST API v2;
+      WordPress.org plugin API and public review feeds). Reviewer names are stored only as hashes.
+    rate_limit_per_min: 60
+    notes: >-
+      One entry covers every app_marketplace instance; add a separate entry type if a
+      platform's terms differ. Drafted from general knowledge; confirm before relying on it.
+  - source_type: web_fetch
+    access_method: public_web
+    terms_url: https://www.rfc-editor.org/rfc/rfc9309
+    reviewed_at: "2026-10-21"
+    allowed_use: >-
+      Agent-requested fetches of public pages for research. robots.txt is honoured,
+      one request per host every 2 seconds, no logins, paywalls or anti-bot bypassing.
+    rate_limit_per_min: 30
+  - source_type: hn_search
+    access_method: official_api
+    terms_url: https://hn.algolia.com/api
+    reviewed_at: "2026-10-21"
+    allowed_use: Searching public Hacker News stories and comments to corroborate problems.
+    rate_limit_per_min: 60
+  - source_type: github_search
+    access_method: official_api
+    terms_url: https://docs.github.com/en/site-policy/github-terms/github-terms-of-service
+    reviewed_at: "2026-10-21"
+    allowed_use: Searching public issues to corroborate problems. Set GITHUB_TOKEN for higher limits.
+    rate_limit_per_min: 9   # unauthenticated search allows 10/min
+
 sources:
   - name: federal-service-contracts
     type: usaspending_awards
@@ -56,3 +102,29 @@ sources:
       max_windows_per_run: 14
       # filters are passed verbatim to the API's "filters" object, e.g.
       # filters: {naics_codes: ["5614"]}
+
+  # App marketplaces: one connector type, one entry per marketplace slice.
+  # Evidence of paid demand, not a limit on what AOE recommends building.
+  - name: atlassian-jira-paid
+    type: app_marketplace
+    enabled: true
+    cadence: 24h
+    config: {platform: atlassian, application: jira, hosting: cloud, cost: paid,
+             max_apps_per_run: 150, reviews_per_app: 50, max_review_stars: 3, include_pricing: true}
+  - name: atlassian-confluence-paid
+    type: app_marketplace
+    enabled: true
+    cadence: 24h
+    config: {platform: atlassian, application: confluence, hosting: cloud, cost: paid,
+             max_apps_per_run: 150, reviews_per_app: 50, max_review_stars: 3, include_pricing: true}
+  - name: wordpress-popular
+    type: app_marketplace
+    enabled: true
+    cadence: 24h
+    config: {platform: wordpress, browse: popular, min_installs: 10000,
+             max_apps_per_run: 100, reviews_per_app: 30, max_review_stars: 3}
+
+  # On-demand sources used by agent tools (never collected on a schedule).
+  - {name: web, type: web_fetch, enabled: false}
+  - {name: hn, type: hn_search, enabled: false}
+  - {name: github, type: github_search, enabled: false}

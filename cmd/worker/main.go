@@ -10,7 +10,6 @@ import (
 
 	"github.com/kwant-dbg/auto/internal/app"
 	"github.com/kwant-dbg/auto/internal/claude"
-	"github.com/kwant-dbg/auto/internal/jobs"
 	"github.com/kwant-dbg/auto/internal/worker"
 )
 
@@ -41,7 +40,7 @@ func main() {
 		PollInterval: cfg.Worker.PollInterval,
 		Log:          log,
 	}
-	w.Handle(jobs.TaskCollect, jobs.CollectHandler(st, app.CollectOptions(cfg)))
+	app.RegisterHandlers(ctx, w, cfg, st, log)
 
 	if err := w.Run(ctx); err != nil {
 		log.Error("worker failed", "err", err)

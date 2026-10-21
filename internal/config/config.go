@@ -10,6 +10,7 @@ import (
 	"gopkg.in/yaml.v3"
 
 	"github.com/kwant-dbg/auto/internal/claude"
+	"github.com/kwant-dbg/auto/internal/embed"
 	"github.com/kwant-dbg/auto/internal/store"
 )
 
@@ -24,6 +25,8 @@ type Config struct {
 	Limits      Limits        `yaml:"limits"`
 	Models      Models        `yaml:"models"`
 	HTTP        HTTP          `yaml:"http"`
+	Extraction  Extraction    `yaml:"extraction"`
+	Embeddings  embed.Config  `yaml:"embeddings"`
 
 	TOS     []store.TOSEntry   `yaml:"tos"`
 	Sources []store.SourceSpec `yaml:"sources"`
@@ -53,6 +56,17 @@ type Models struct {
 	Mid  string `yaml:"mid"`
 	Top  string `yaml:"top"`
 }
+
+// Extraction tunes observation extraction (docs/02 §5).
+type Extraction struct {
+	Enabled          *bool `yaml:"enabled"` // default true
+	MaxQueuedTasks   int   `yaml:"max_queued_tasks"`
+	MaxDocsPerBatch  int   `yaml:"max_docs_per_batch"`
+	MaxBytesPerBatch int   `yaml:"max_bytes_per_batch"`
+}
+
+// On reports whether extraction is enabled.
+func (e Extraction) On() bool { return e.Enabled == nil || *e.Enabled }
 
 // HTTP configures outbound fetching by connectors.
 type HTTP struct {
@@ -116,6 +130,9 @@ func (c *Config) defaults() {
 	}
 	if c.HTTP.Timeout <= 0 {
 		c.HTTP.Timeout = 60 * time.Second
+	}
+	if c.Embeddings.Provider != "" && c.Embeddings.Dimensions == 0 {
+		c.Embeddings.Dimensions = 768
 	}
 }
 

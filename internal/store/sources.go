@@ -47,6 +47,7 @@ type Source struct {
 	ConsecutiveErrors    int
 	LastError            *string
 	RateLimitPerMin      int
+	HasTOS               bool
 }
 
 // MaxBackoffFactor caps how far an unproductive source's cadence stretches.
@@ -112,14 +113,14 @@ func (s *Store) SyncSources(ctx context.Context, specs []SourceSpec) error {
 const sourceColumns = `
 	s.id, s.name, s.type, s.config, extract(epoch FROM s.cadence)::bigint, s.backoff_factor, s.cursor,
 	s.enabled, s.next_run_at, s.last_success_at, s.last_new_document_at, s.consecutive_empty_runs,
-	s.consecutive_errors, s.last_error, coalesce(t.rate_limit_per_min, 60)`
+	s.consecutive_errors, s.last_error, coalesce(t.rate_limit_per_min, 60), t.id IS NOT NULL`
 
 func scanSource(row pgx.Row) (Source, error) {
 	var src Source
 	var cadenceSecs int64
 	err := row.Scan(&src.ID, &src.Name, &src.Type, &src.Config, &cadenceSecs, &src.BackoffFactor, &src.Cursor,
 		&src.Enabled, &src.NextRunAt, &src.LastSuccessAt, &src.LastNewDocumentAt, &src.ConsecutiveEmptyRuns,
-		&src.ConsecutiveErrors, &src.LastError, &src.RateLimitPerMin)
+		&src.ConsecutiveErrors, &src.LastError, &src.RateLimitPerMin, &src.HasTOS)
 	src.Cadence = time.Duration(cadenceSecs) * time.Second
 	return src, err
 }
