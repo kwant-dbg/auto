@@ -117,7 +117,7 @@ Priority: **P0** = Phase 1 must-have · **P1** = Phase 2 · **P2** = Phase 3+.
 | ID | Requirement | P |
 |---|---|---|
 | PRB-1 | Embed normalised statements (pinned embedding model recorded per vector) | P0 |
-| PRB-2 | Attach to existing problem above threshold `τ_high`; adjudicate by LLM in `[τ_low, τ_high)` with verdict ∈ {same, parent, child, sibling, different}; else create candidate | P0 |
+| PRB-2 | Candidate problems are found by the best match against **every member** of each problem: pgvector cosine when embeddings are configured, pg_trgm text similarity otherwise (so clustering keeps working without an embedding server). Attach above `τ_high`; adjudicate by LLM in `[τ_low, τ_high)` with verdict ∈ {same, narrower, broader, different} and group labels so one batch can't create duplicate problems; below `τ_low` create a problem. Every decision is logged in `cluster_decision` | P0 |
 | PRB-3 | Problems form a hierarchy (parent_id) | P0 |
 | PRB-4 | Compute independent-origin count per problem (author/org/near-dup/canonical-URL clustering) | P0 |
 | PRB-5 | Weekly re-clustering with LLM-reviewed merge/split proposals | P1 |
@@ -127,7 +127,7 @@ Priority: **P0** = Phase 1 must-have · **P1** = Phase 2 · **P2** = Phase 3+.
 
 | ID | Requirement | P |
 |---|---|---|
-| OPP-1 | Triage creates an Opportunity from a Problem meeting entry criteria (≥ 2 independent origins or 1 T1 observation) | P0 |
+| OPP-1 | Triage creates an Opportunity from a Problem with ≥ 2 independent origins (configurable). *Changed in week 3:* the original "or 1 T1 observation" rule would send every single contract award to triage, because each award is tier-1 spend evidence. The signal that matters is the same work bought by several independent buyers. Re-triage happens when a candidate's or parked opportunity's origins double | P0 |
 | OPP-2 | Gates F1–F4 and M1–M6 (see `03` §2.1) each hold PASS/FAIL/UNKNOWN with evidence links; F1 is skipped when `conflict_check_required: false` (current setting) | P0 |
 | OPP-3 | Each UNKNOWN gate and each factor with evidence ≤ T6 creates a Question | P0 |
 | OPP-4 | Kill questions (competitor sweep, prospect-list feasibility, unit-cost sanity, spend evidence) are created first and ordered by P(kill)/cost | P0 |
@@ -136,7 +136,7 @@ Priority: **P0** = Phase 1 must-have · **P1** = Phase 2 · **P2** = Phase 3+.
 | OPP-7 | At least 2 business-model paths evaluated per Dossier-stage opportunity (service-first + one other) | P1 (P0: service-first only) |
 | OPP-8 | First-10 plan: prospect list (≥ 50 orgs for M3 PASS), primary + backup channel, founder-executability questions, ranged funnel, kill thresholds | P0 (list ≥ 20 acceptable in Phase 1), P1 full |
 | OPP-9 | Parked opportunities require ≥ 1 machine-checkable wake condition; nightly job evaluates them | P0 |
-| OPP-10 | Killed opportunities require a reason code from the fixed taxonomy | P0 |
+| OPP-10 | Killed opportunities require a reason code from the fixed taxonomy (`out_of_scope` added in week 3: work software or an AI-enabled service can't address, e.g. physical services) | P0 |
 
 ### 6.5 Research
 

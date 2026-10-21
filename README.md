@@ -2,7 +2,7 @@
 
 Pre-implementation strategy and architecture for a personal system that finds, evaluates, and validates commercially viable software opportunities for a solo technical founder.
 
-**Status:** design review complete and founder decisions recorded (Go; Claude Enterprise subscription via headless Claude Code; Claude-only Bull/Bear/Judge debate; marketplaces as one evidence source among several, with general-purpose tools in scope; week-8 stop rule accepted). Phase 1 build in progress: weeks 1–2 are done (see **Running it** below).
+**Status:** design review complete and founder decisions recorded (Go; Claude Enterprise subscription via headless Claude Code; Claude-only Bull/Bear/Judge debate; marketplaces as one evidence source among several, with general-purpose tools in scope; week-8 stop rule accepted). Phase 1 build in progress: weeks 1–3 are done (see **Running it** below).
 
 ## The core thesis
 
@@ -41,7 +41,7 @@ AOE succeeds if the founder spends their few weekly hours on **opportunities wit
 
 ## Running it
 
-### What's built (Phase 1, weeks 1–2)
+### What's built (Phase 1, weeks 1–3)
 
 | Piece | Where | Status |
 |---|---|---|
@@ -55,14 +55,19 @@ AOE succeeds if the founder spends their few weekly hours on **opportunities wit
 | Extraction: verbatim quotes located by code, tier by rule, origin keys, rejected quotes logged; batch scheduler with backpressure | `internal/extract`, `internal/evidence`, `internal/jobs` | ✅ tested; **live**: 29 documents → 27 observations, 0 rejected quotes |
 | Embeddings (Ollama or TEI) + sweeper | `internal/embed` | ✅ tested against fake servers; Ollama itself not run here |
 | `aoe-mcp` tools: `fetch_and_snapshot`, `kb_search`, `search_hn`, `search_github_issues` | `internal/tools`, `cmd/aoe-mcp` | ✅ tested (incl. an in-memory MCP round trip); **live**: fetch, HN; GitHub search untested live (blocked in the build sandbox) |
+| Problems: candidate search against every member (pgvector, or pg_trgm without embeddings), auto attach/create, batched model adjudication with hierarchy; every decision logged | `internal/problems` | ✅ tested |
+| Triage → opportunities: founder profile, code-enforced gate rules, lifecycle decision with reason codes, kill questions, re-triage when evidence doubles | `internal/triage`, `internal/founder` | ✅ tested |
 | CLI, worker, scheduler; Dockerfile + compose (Postgres, worker, scheduler, Ollama, Metabase) | `cmd/`, root | ✅ smoke-tested locally; Docker build not run here |
 
-**Next (week 3):** problems: clustering normalised observations (ANN attach, LLM adjudication, hierarchy), independence counts, triage gates, opportunities and questions.
+**Next (week 4):** the research agent (answers questions with the `aoe-mcp` tools), the finding verifier, the assessor (factor ranges, Monte Carlo, weakest link) and the Bull/Bear/Judge debate.
 
 ### Useful commands
 
 ```sh
 aoe stats                          # documents, extraction progress, rejection rate, observations by tier, Claude usage today
+aoe problems --min-origins 2       # problems backed by independent evidence
+aoe opportunities                  # triaged opportunities with gate verdicts and open questions
+aoe opportunity <id>               # one opportunity: summary, gates with citations, questions
 aoe observations --tier 1          # strongest evidence first
 aoe kb "month-end reconciliation"  # search collected evidence
 aoe extract --dry-run --limit 3    # see the exact prompt the extractor will send

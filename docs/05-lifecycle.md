@@ -49,7 +49,7 @@ stateDiagram-v2
 | Stage | Entry gate | Research budget (units) | Exit artefact | Typical kill reasons |
 |---|---|---|---|---|
 | **Signal** | ≥ 1 verified observation | 0 (extraction only) | Clustered problem | n/a (signals are not opportunities) |
-| **Candidate** | Problem with ≥ 2 independent origins, **or** 1 observation at T1 | 1 | Triage card: gates F1–F4, M1, M2 status; 3–5 critical questions | F-gate fail; no identifiable buyer after triage |
+| **Candidate** | Problem with ≥ 2 independent origins (see PRD OPP-1 for why a single T1 observation no longer qualifies) | 1 | Triage card: gates F1–F4, M1, M2 status; 3–5 critical questions | F-gate fail; no identifiable buyer after triage |
 | **Qualified** | M1 + M2 PASS | 5 | Kill-question results (competitor sweep, prospect-list feasibility, unit-cost sanity) | Strong incumbent at same price/segment; < 50 prospects findable; unit cost > price |
 | **Dossier** | Qualified + admitted by scheduler (VoE ranking) or founder | 20–50 | **Opportunity dossier**: factor ranges, EV distribution, 3 paths, First-10 plan, red-team report, pre-registered predictions, validation plan | Gates fail on evidence; P(MRR ≥ $1k) below threshold; desk research saturated with weakest link unresolvable cheaply → go to Validating or Park |
 | **Validating** | Founder approval of a specific experiment | External: founder hours + $ cap set per experiment | Experiment results + updated factors + Brier-scored predictions | Pre-committed kill thresholds hit |
@@ -64,7 +64,7 @@ stateDiagram-v2
   - `competitor_event`: e.g., "price change or shutdown detected for competitor C"
   - `regulation`: e.g., "rule R reaches final-rule status"
   - `date`: re-review after date D
-- **Killed**: reason code from a fixed taxonomy (`no_buyer`, `no_spend`, `unreachable`, `incumbent_strong`, `negative_margin`, `infeasible`, `founder_gate`, `invalidated_by_experiment`, `founder_veto`) plus free-text and evidence links. Only the human can revive a killed opportunity.
+- **Killed**: reason code from a fixed taxonomy (`no_buyer`, `no_spend`, `unreachable`, `incumbent_strong`, `negative_margin`, `infeasible`, `founder_gate`, `invalidated_by_experiment`, `founder_veto`, `out_of_scope`) plus free-text and evidence links. Only the human can revive a killed opportunity.
 - **Awaiting approval** is not a stage. It is a flag on any task or experiment, shown in the approval queue.
 
 ---
