@@ -200,3 +200,17 @@ func statsCmd(ctx context.Context, st *store.Store) error {
 	fmt.Printf("\nClaude today (UTC): %d calls, %d turns, est. $%.2f (estimate only; runs on the subscription)\n", calls, turns, cost)
 	return nil
 }
+
+func hnCmd(ctx context.Context, cfg *config.Config, st *store.Store, args []string) error {
+	if len(args) == 0 {
+		return errors.New("usage: aoe hn <query>")
+	}
+	out, err := toolServer(cfg, st).SearchHN(ctx, tools.HNInput{Query: strings.Join(args, " "), Kind: "comment", Limit: 5})
+	if err != nil {
+		return err
+	}
+	for _, h := range out.Hits {
+		fmt.Printf("doc %d  %s  %s\n  %s\n  %s\n\n", h.DocumentID, h.CreatedAt, h.Title, truncate(h.Text, 240), h.URL)
+	}
+	return nil
+}

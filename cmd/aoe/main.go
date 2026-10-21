@@ -45,6 +45,7 @@ Evidence
   observations [--limit N] [--tier T]           recent verified observations
   kb <query>                                    search collected evidence (the agents' kb_search)
   fetch <url>                                   snapshot a public page (the agents' fetch_and_snapshot)
+  hn <query>                                    search Hacker News comments and snapshot hits (the agents' search_hn)
 
 Operations
   stats                           pipeline health: documents, extraction, rejection rate, observations by tier
@@ -104,6 +105,8 @@ func run(ctx context.Context, args []string) error {
 		return kbCmd(ctx, cfg, st, rest)
 	case "fetch":
 		return fetchCmd(ctx, cfg, st, rest)
+	case "hn":
+		return hnCmd(ctx, cfg, st, rest)
 	case "pause", "resume":
 		if err := st.SetPaused(ctx, cmd == "pause"); err != nil {
 			return err

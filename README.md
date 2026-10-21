@@ -66,6 +66,7 @@ aoe stats                          # documents, extraction progress, rejection r
 aoe observations --tier 1          # strongest evidence first
 aoe kb "month-end reconciliation"  # search collected evidence
 aoe extract --dry-run --limit 3    # see the exact prompt the extractor will send
+aoe fetch <url> ; aoe hn <query>   # the agents' fetch and Hacker News tools, by hand
 aoe claude check --probe-tools --probe-websearch
 ```
 
