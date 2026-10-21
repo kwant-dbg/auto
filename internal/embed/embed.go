@@ -165,7 +165,7 @@ func (s *Sweeper) Handle(ctx context.Context, _ *queue.Task) (any, error) {
 	err := pgx.BeginFunc(ctx, s.Store.DB, func(tx pgx.Tx) error {
 		rows, err := tx.Query(ctx, `
 			SELECT id, actor_segment, job, obstacle, consequence FROM observation
-			WHERE embedding IS NULL ORDER BY id LIMIT $1 FOR UPDATE SKIP LOCKED`, s.Client.cfg.BatchSize)
+			WHERE embedding IS NULL AND NOT superseded ORDER BY id LIMIT $1 FOR UPDATE SKIP LOCKED`, s.Client.cfg.BatchSize)
 		if err != nil {
 			return err
 		}
@@ -208,7 +208,7 @@ func (s *Sweeper) Handle(ctx context.Context, _ *queue.Task) (any, error) {
 func Schedule(ctx context.Context, st *store.Store) (bool, error) {
 	var pending bool
 	if err := st.DB.QueryRow(ctx, `SELECT
-		EXISTS (SELECT 1 FROM observation WHERE embedding IS NULL)
+		EXISTS (SELECT 1 FROM observation WHERE embedding IS NULL AND NOT superseded)
 		AND NOT EXISTS (SELECT 1 FROM task WHERE type = $1 AND state IN ('queued', 'running'))`, TaskType).Scan(&pending); err != nil {
 		return false, err
 	}

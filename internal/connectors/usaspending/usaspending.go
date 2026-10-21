@@ -15,6 +15,7 @@ import (
 	"io"
 	"maps"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/kwant-dbg/auto/internal/connectors"
@@ -48,14 +49,20 @@ type Config struct {
 	Keywords       []string `json:"keywords"`
 	// Filters are merged verbatim into the API's "filters" object, for
 	// filters not modelled here (e.g. naics_codes, psc_codes, agencies).
-	Filters           map[string]any `json:"filters"`
-	Fields            []string       `json:"fields"`
-	StartDate         string         `json:"start_date"`    // first window; default today − lookback_days
-	LookbackDays      int            `json:"lookback_days"` // default 30
-	WindowDays        int            `json:"window_days"`   // default 1
-	MaxWindowsPerRun  int            `json:"max_windows_per_run"`
-	PageSize          int            `json:"page_size"`
-	MaxPagesPerWindow int            `json:"max_pages_per_window"`
+	Filters map[string]any `json:"filters"`
+	Fields  []string       `json:"fields"`
+	// ServicesOnly drops product purchases (PSC codes starting with a digit);
+	// AOE looks for work people are paid to do, not goods. Default true.
+	ServicesOnly *bool `json:"services_only"`
+	// ExcludePSCPrefixes drops service categories that are physical by
+	// definition. Default Y (construction) and Z (real-property maintenance).
+	ExcludePSCPrefixes []string `json:"exclude_psc_prefixes"`
+	StartDate          string   `json:"start_date"`    // first window; default today − lookback_days
+	LookbackDays       int      `json:"lookback_days"` // default 30
+	WindowDays         int      `json:"window_days"`   // default 1
+	MaxWindowsPerRun   int      `json:"max_windows_per_run"`
+	PageSize           int      `json:"page_size"`
+	MaxPagesPerWindow  int      `json:"max_pages_per_window"`
 }
 
 func (c *Config) defaults() {
@@ -74,6 +81,13 @@ func (c *Config) defaults() {
 			"Award ID", "Recipient Name", "Description", "Award Amount", "Start Date", "End Date",
 			"Awarding Agency", "Awarding Sub Agency", "Contract Award Type", "NAICS", "PSC",
 		}
+	}
+	if c.ServicesOnly == nil {
+		yes := true
+		c.ServicesOnly = &yes
+	}
+	if c.ExcludePSCPrefixes == nil {
+		c.ExcludePSCPrefixes = []string{"Y", "Z"}
 	}
 	if c.LookbackDays <= 0 {
 		c.LookbackDays = 30
@@ -191,6 +205,9 @@ func (c *Connector) fetchWindow(ctx context.Context, env connectors.Env, start, 
 			return fmt.Errorf("page %d: %w", page, err)
 		}
 		for _, row := range resp.Results {
+			if !c.keep(row) {
+				continue
+			}
 			doc, err := toDocument(row)
 			if err != nil {
 				return err
@@ -203,6 +220,36 @@ func (c *Connector) fetchWindow(ctx context.Context, env connectors.Env, start, 
 			return nil
 		}
 	}
+}
+
+// keep applies the services-only and PSC-prefix filters.
+func (c *Connector) keep(row map[string]any) bool {
+	code := pscCode(row)
+	if code == "" {
+		return !*c.cfg.ServicesOnly
+	}
+	if *c.cfg.ServicesOnly && code[0] >= '0' && code[0] <= '9' {
+		return false
+	}
+	for _, p := range c.cfg.ExcludePSCPrefixes {
+		if p != "" && strings.HasPrefix(strings.ToUpper(code), strings.ToUpper(p)) {
+			return false
+		}
+	}
+	return true
+}
+
+// pscCode reads the Product and Service Code, which the API returns as an
+// object {code, description} (or, in older responses, a plain string).
+func pscCode(row map[string]any) string {
+	switch v := row["PSC"].(type) {
+	case map[string]any:
+		s, _ := v["code"].(string)
+		return strings.TrimSpace(s)
+	case string:
+		return strings.TrimSpace(v)
+	}
+	return ""
 }
 
 func (c *Connector) post(ctx context.Context, env connectors.Env, path string, body []byte, out any) error {
@@ -280,7 +327,11 @@ func toDocument(row map[string]any) (store.Document, error) {
 			doc.PublishedAt = &t
 		}
 	}
-	if org, ok := row["Awarding Agency"].(string); ok {
+	// The buying organisation is the independent origin. The department
+	// ("Department of Justice") is too coarse: its bureaus buy independently.
+	if org, ok := row["Awarding Sub Agency"].(string); ok && org != "" {
+		doc.OrgHint = org
+	} else if org, ok := row["Awarding Agency"].(string); ok {
 		doc.OrgHint = org
 	}
 	return doc, nil

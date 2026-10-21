@@ -3,6 +3,7 @@ package jobs
 import (
 	"context"
 	"fmt"
+	"sort"
 
 	"github.com/jackc/pgx/v5"
 
@@ -66,14 +67,19 @@ func ScheduleExtraction(ctx context.Context, st *store.Store, opt ExtractOptions
 		if slots <= 0 {
 			return nil
 		}
+		// Interleave sources (each source's 1st document, then each one's 2nd,
+		// …) so one source's backlog can't starve the others.
 		rows, err := tx.Query(ctx, `
-			SELECT r.id, r.source_id, r.byte_size
-			FROM raw_document r
-			LEFT JOIN extraction e ON e.raw_document_id = r.id AND e.prompt_version = $1
-			LEFT JOIN task t ON t.id = e.task_id
-			WHERE e.raw_document_id IS NULL
-			   OR (e.status = 'queued' AND (t.id IS NULL OR t.state = 'dead') AND e.attempts < $2)
-			ORDER BY r.source_id, r.id
+			SELECT id, source_id, byte_size FROM (
+				SELECT r.id, r.source_id, r.byte_size,
+				       row_number() OVER (PARTITION BY r.source_id ORDER BY r.id) AS rn
+				FROM raw_document r
+				LEFT JOIN extraction e ON e.raw_document_id = r.id AND e.prompt_version = $1
+				LEFT JOIN task t ON t.id = e.task_id
+				WHERE e.raw_document_id IS NULL
+				   OR (e.status = 'queued' AND (t.id IS NULL OR t.state = 'dead') AND e.attempts < $2)
+			) x
+			ORDER BY rn, source_id
 			LIMIT $3`, version, opt.MaxAttempts, slots*opt.MaxDocsPerBatch)
 		if err != nil {
 			return err
@@ -86,8 +92,15 @@ func ScheduleExtraction(ctx context.Context, st *store.Store, opt ExtractOptions
 		if err != nil {
 			return err
 		}
+		// The interleaved selection is regrouped by source for batching.
+		sort.Slice(cands, func(i, j int) bool {
+			if cands[i].sourceID != cands[j].sourceID {
+				return cands[i].sourceID < cands[j].sourceID
+			}
+			return cands[i].id < cands[j].id
+		})
 
-		for _, batch := range Batches(cands, opt.MaxDocsPerBatch, opt.MaxBytesPerBatch) {
+		for _, batch := range interleave(Batches(cands, opt.MaxDocsPerBatch, opt.MaxBytesPerBatch)) {
 			if enqueued >= slots {
 				break
 			}
@@ -115,6 +128,30 @@ func ScheduleExtraction(ctx context.Context, st *store.Store, opt ExtractOptions
 		return nil
 	})
 	return enqueued, err
+}
+
+// interleave orders batches round-robin by source, so the slot limit cuts
+// evenly across sources instead of dropping the last source's batches.
+func interleave(batches [][]candidate) [][]candidate {
+	var order []int64
+	bySource := map[int64][][]candidate{}
+	for _, b := range batches {
+		src := b[0].sourceID
+		if _, ok := bySource[src]; !ok {
+			order = append(order, src)
+		}
+		bySource[src] = append(bySource[src], b)
+	}
+	out := make([][]candidate, 0, len(batches))
+	for len(out) < len(batches) {
+		for _, src := range order {
+			if q := bySource[src]; len(q) > 0 {
+				out = append(out, q[0])
+				bySource[src] = q[1:]
+			}
+		}
+	}
+	return out
 }
 
 // Batches groups candidates (sorted by source) into batches from a single

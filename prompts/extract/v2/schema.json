@@ -1,0 +1,38 @@
+{
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["observations"],
+  "properties": {
+    "observations": {
+      "type": "array",
+      "maxItems": 60,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["document_id", "quote", "category", "actor_segment", "job", "obstacle", "consequence", "specificity", "spend_hints"],
+        "properties": {
+          "document_id": {"type": "integer"},
+          "quote": {"type": "string", "minLength": 15, "maxLength": 1200},
+          "category": {"type": "string", "enum": ["spend", "offer", "complaint", "job_task", "change", "other"]},
+          "actor_segment": {"type": "string", "minLength": 3, "maxLength": 200},
+          "job": {"type": "string", "minLength": 3, "maxLength": 300},
+          "obstacle": {"type": "string", "maxLength": 300},
+          "consequence": {"type": "string", "maxLength": 300},
+          "specificity": {"type": "integer", "minimum": 0, "maximum": 5},
+          "spend_hints": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["amount_usd", "period", "unit", "headcount", "tools"],
+            "properties": {
+              "amount_usd": {"type": ["number", "null"]},
+              "period": {"type": ["string", "null"]},
+              "unit": {"type": ["string", "null"]},
+              "headcount": {"type": ["number", "null"]},
+              "tools": {"type": "array", "items": {"type": "string"}, "maxItems": 10}
+            }
+          }
+        }
+      }
+    }
+  }
+}

@@ -45,6 +45,7 @@ func (f *fakeAPI) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	page := int(body["page"].(float64))
 	results := []map[string]any{{
+		"PSC":                   map[string]any{"code": "R408", "description": "PROGRAM MANAGEMENT/SUPPORT SERVICES"},
 		"Award ID":              "AWD-" + startDate + "-" + string(rune('0'+page)),
 		"generated_internal_id": "CONT_AWD_" + startDate + "_" + string(rune('0'+page)),
 		"Description":           "RECORDS MANAGEMENT SERVICES",
@@ -163,5 +164,22 @@ func TestDocumentsKeepTextVerbatim(t *testing.T) {
 	}
 	if !strings.Contains(string(d.Content), `"J. & L. <Co>"`) {
 		t.Fatalf("text was escaped: %s", d.Content)
+	}
+}
+
+func TestServiceFilterAndOrigin(t *testing.T) {
+	c := newConnector(t, "http://unused", nil)
+	for code, want := range map[string]bool{"R408": true, "J045": true, "8905": false, "Y1AA": false, "Z2BA": false} {
+		if got := c.keep(map[string]any{"PSC": map[string]any{"code": code}}); got != want {
+			t.Errorf("keep(%s) = %v, want %v", code, got, want)
+		}
+	}
+	all := newConnector(t, "http://unused", map[string]any{"services_only": false, "exclude_psc_prefixes": []string{}})
+	if !all.keep(map[string]any{"PSC": map[string]any{"code": "8905"}}) {
+		t.Error("filters must be configurable off")
+	}
+	d, _ := toDocument(map[string]any{"Award ID": "A", "Awarding Agency": "Department of Justice", "Awarding Sub Agency": "Federal Prison System"})
+	if d.OrgHint != "Federal Prison System" {
+		t.Errorf("origin = %q, want the sub-agency", d.OrgHint)
 	}
 }

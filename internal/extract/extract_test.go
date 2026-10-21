@@ -102,8 +102,8 @@ func TestExtractVerifiesSpansAndAssignsTiers(t *testing.T) {
 		t.Fatalf("outputs = %+v", out)
 	}
 	spec := fake.specs[0]
-	if spec.Model != "haiku" || spec.PromptVersion != "extract/v1" || len(spec.Schema) == 0 || len(spec.Tools) != 0 || spec.SystemPrompt == "" {
-		t.Fatalf("spec = %+v", spec)
+	if spec.Model != "haiku" || spec.PromptVersion != "extract/"+extract.PromptVersion || len(spec.Schema) == 0 || len(spec.Tools) != 0 || spec.SystemPrompt == "" {
+		t.Fatalf("spec: model=%s prompt=%s schema=%d tools=%v", spec.Model, spec.PromptVersion, len(spec.Schema), spec.Tools)
 	}
 
 	// Every stored quote is exactly the snapshot bytes at its span.
@@ -206,5 +206,40 @@ func TestBuildPromptTruncatesLongDocuments(t *testing.T) {
 	p := extract.BuildPrompt([]extract.Doc{{ID: 7, SourceType: "web_fetch", CanonicalURL: "https://e", Content: []byte(long)}})
 	if !strings.Contains(p, `truncated="true"`) || len(p) > extract.MaxDocChars+500 {
 		t.Fatalf("prompt length %d", len(p))
+	}
+}
+
+func TestReextractionSupersedesOldObservations(t *testing.T) {
+	st := testdb.New(t)
+	ctx := context.Background()
+	ids := seed(t, st, "web_fetch", store.Document{CanonicalURL: "https://e.com", MIME: "text/plain",
+		Content: []byte("Agencies re-key invoices by hand every week.")})
+	// An observation from an older prompt version, already in a problem.
+	var oldObs, pid int64
+	st.DB.QueryRow(ctx, `INSERT INTO observation (raw_document_id, span_start, span_end, quote, category, evidence_tier,
+		actor_segment, job, origin_key, model, prompt_version, input_hash)
+		VALUES ($1, 0, 5, 'Agenc', 'complaint', 4, 'a', 'b', 'o', 'm', 'extract/v0', 'h') RETURNING id`, ids[0]).Scan(&oldObs) //nolint:errcheck
+	st.DB.QueryRow(ctx, `INSERT INTO problem (canonical_statement, segment, observation_count) VALUES ('x', 'y', 1) RETURNING id`).Scan(&pid) //nolint:errcheck
+	st.DB.Exec(ctx, `INSERT INTO problem_observation (problem_id, observation_id, attach_method) VALUES ($1, $2, 'auto')`, pid, oldObs)       //nolint:errcheck
+
+	fake := &fakeRunner{output: func(string) string {
+		return `{"observations":[` + obsJSON(ids[0], "Agencies re-key invoices by hand every week.", "complaint") + `]}`
+	}}
+	ex := &extract.Extractor{Store: st, LLM: &llm.Client{Runner: fake, Store: st}, Model: "haiku"}
+	if _, err := ex.Run(ctx, nil, extract.Inputs{DocumentIDs: ids}); err != nil {
+		t.Fatal(err)
+	}
+	var superseded bool
+	st.DB.QueryRow(ctx, `SELECT superseded FROM observation WHERE id = $1`, oldObs).Scan(&superseded) //nolint:errcheck
+	var members int
+	var status string
+	st.DB.QueryRow(ctx, `SELECT observation_count, status FROM problem WHERE id = $1`, pid).Scan(&members, &status) //nolint:errcheck
+	if !superseded || members != 0 || status != "retired" {
+		t.Fatalf("superseded=%v members=%d status=%s", superseded, members, status)
+	}
+	var current int
+	st.DB.QueryRow(ctx, `SELECT count(*) FROM observation WHERE NOT superseded`).Scan(&current) //nolint:errcheck
+	if current != 1 {
+		t.Fatalf("current observations = %d", current)
 	}
 }

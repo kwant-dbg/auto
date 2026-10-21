@@ -19,6 +19,7 @@ import (
 	"github.com/kwant-dbg/auto/internal/claude"
 	"github.com/kwant-dbg/auto/internal/evidence"
 	"github.com/kwant-dbg/auto/internal/llm"
+	"github.com/kwant-dbg/auto/internal/problems"
 	"github.com/kwant-dbg/auto/internal/queue"
 	"github.com/kwant-dbg/auto/internal/store"
 	"github.com/kwant-dbg/auto/internal/worker"
@@ -28,8 +29,11 @@ import (
 // TaskType is the queue task type.
 const TaskType = "extract"
 
-// PromptVersion is the extractor prompt in use.
-const PromptVersion = "v1"
+// PromptVersion is the extractor prompt in use. v2 (week 3) asks for buyer
+// types and generalised jobs, so statements from different organisations
+// match; documents extracted with an older version are re-extracted and their
+// old observations superseded.
+const PromptVersion = "v2"
 
 // MaxDocChars caps how much of one document goes into a prompt. Longer
 // documents are truncated; quotes can only come from the part shown.
@@ -280,6 +284,9 @@ func (e *Extractor) Run(ctx context.Context, taskID *int64, in Inputs) (Outputs,
 			c[0]++
 			perDoc[d.ID] = c
 		}
+		if err := supersede(ctx, tx, in.DocumentIDs, p.ID()); err != nil {
+			return err
+		}
 		for _, d := range docs {
 			c := perDoc[d.ID]
 			if _, err := tx.Exec(ctx, `
@@ -297,3 +304,38 @@ func (e *Extractor) Run(ctx context.Context, taskID *int64, in Inputs) (Outputs,
 }
 
 func clamp(v, lo, hi int) int { return max(lo, min(hi, v)) }
+
+// supersede retires observations of these documents made by other prompt
+// versions: they leave their problems, whose counts are refreshed, and
+// problems left empty are retired.
+func supersede(ctx context.Context, tx pgx.Tx, docIDs []int64, current string) error {
+	rows, err := tx.Query(ctx, `
+		WITH old AS (
+			UPDATE observation SET superseded = true
+			WHERE raw_document_id = ANY($1) AND prompt_version <> $2 AND NOT superseded
+			RETURNING id)
+		DELETE FROM problem_observation po USING old WHERE po.observation_id = old.id
+		RETURNING po.problem_id`, docIDs, current)
+	if err != nil {
+		return err
+	}
+	affected, err := pgx.CollectRows(rows, pgx.RowTo[int64])
+	if err != nil {
+		return err
+	}
+	seen := map[int64]bool{}
+	for _, pid := range affected {
+		if seen[pid] {
+			continue
+		}
+		seen[pid] = true
+		if err := problems.RefreshStats(ctx, tx, pid); err != nil {
+			return err
+		}
+	}
+	if len(seen) > 0 {
+		_, err = tx.Exec(ctx, `UPDATE problem SET status = 'retired', updated_at = now()
+			WHERE id = ANY($1) AND observation_count = 0`, affected)
+	}
+	return err
+}

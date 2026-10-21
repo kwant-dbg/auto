@@ -73,7 +73,7 @@ func observationsCmd(ctx context.Context, st *store.Store, args []string) error 
 		       o.actor_segment || ' need to ' || o.job || CASE WHEN o.obstacle <> '' THEN ' but ' || o.obstacle ELSE '' END,
 		       o.quote, o.injection_suspect
 		FROM observation o JOIN raw_document r ON r.id = o.raw_document_id JOIN source s ON s.id = r.source_id
-		WHERE o.evidence_tier <= $2 ORDER BY o.id DESC LIMIT $1`, *limit, *tier)
+		WHERE o.evidence_tier <= $2 AND NOT o.superseded ORDER BY o.id DESC LIMIT $1`, *limit, *tier)
 	if err != nil {
 		return err
 	}
@@ -175,7 +175,7 @@ func statsCmd(ctx context.Context, st *store.Store) error {
 
 	fmt.Println("\nobservations by evidence tier:")
 	trows, err := st.DB.Query(ctx, `SELECT evidence_tier, category, count(*), count(*) FILTER (WHERE embedding IS NOT NULL)
-		FROM observation GROUP BY 1, 2 ORDER BY 1, 2`)
+		FROM observation WHERE NOT superseded GROUP BY 1, 2 ORDER BY 1, 2`)
 	if err != nil {
 		return err
 	}

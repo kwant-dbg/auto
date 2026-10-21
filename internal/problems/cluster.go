@@ -198,7 +198,8 @@ func (c *Clusterer) Run(ctx context.Context, taskID *int64) (Stats, error) {
 func (c *Clusterer) unassigned(ctx context.Context) ([]obs, error) {
 	rows, err := c.Store.DB.Query(ctx, `
 		SELECT o.id, o.statement, o.quote, o.actor_segment FROM observation o
-		WHERE NOT EXISTS (SELECT 1 FROM problem_observation po WHERE po.observation_id = o.id)
+		WHERE NOT o.superseded
+		  AND NOT EXISTS (SELECT 1 FROM problem_observation po WHERE po.observation_id = o.id)
 		  AND (NOT $1 OR o.embedding IS NOT NULL)
 		ORDER BY o.id LIMIT $2`, c.Cfg.UseVectors, c.Cfg.MaxPerRun)
 	if err != nil {
@@ -442,7 +443,8 @@ func (c *Clusterer) adjudicate(ctx context.Context, taskID *int64, batch []pendi
 func Schedule(ctx context.Context, st *store.Store, useVectors bool) (bool, error) {
 	var due bool
 	if err := st.DB.QueryRow(ctx, `SELECT
-		EXISTS (SELECT 1 FROM observation o WHERE NOT EXISTS (SELECT 1 FROM problem_observation po WHERE po.observation_id = o.id)
+		EXISTS (SELECT 1 FROM observation o WHERE NOT o.superseded
+		        AND NOT EXISTS (SELECT 1 FROM problem_observation po WHERE po.observation_id = o.id)
 		        AND (NOT $2 OR o.embedding IS NOT NULL))
 		AND NOT EXISTS (SELECT 1 FROM task WHERE type = $1 AND state IN ('queued', 'running'))`, TaskType, useVectors).Scan(&due); err != nil {
 		return false, err

@@ -313,6 +313,7 @@ func (s *Server) KBSearch(ctx context.Context, in KBInput) (KBOutput, error) {
 		WHERE to_tsvector('english', o.quote || ' ' || o.actor_segment || ' ' || o.job || ' ' || o.obstacle)
 		      @@ websearch_to_tsquery('english', $1)
 		  AND ($3 = '' OR o.category = $3)
+		  AND NOT o.superseded
 		ORDER BY ts_rank(to_tsvector('english', o.quote || ' ' || o.actor_segment || ' ' || o.job || ' ' || o.obstacle),
 		                 websearch_to_tsquery('english', $1)) DESC, o.evidence_tier, o.id DESC
 		LIMIT $2`, in.Query, limit, in.Category)

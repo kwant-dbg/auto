@@ -96,3 +96,25 @@ func TestDeadExtractionTasksRetryThenFail(t *testing.T) {
 		t.Fatalf("extraction = %s after %d attempts", status, attempts)
 	}
 }
+
+func TestScheduleExtractionSharesAcrossSources(t *testing.T) {
+	st := testdb.New(t)
+	ctx := context.Background()
+	st.SyncTOS(ctx, []store.TOSEntry{{SourceType: "t", AccessMethod: "a", TermsURL: "u", ReviewedAt: "2026-10-21", AllowedUse: "x", RateLimitPerMin: 1}}) //nolint:errcheck
+	st.SyncSources(ctx, []store.SourceSpec{{Name: "big", Type: "t"}, {Name: "small", Type: "t"}})                                                         //nolint:errcheck
+	big, _ := st.GetSource(ctx, "big")
+	small, _ := st.GetSource(ctx, "small")
+	for i := 0; i < 50; i++ {
+		st.SaveDocument(ctx, big.ID, store.Document{CanonicalURL: fmt.Sprint("b", i), MIME: "text/plain", Content: []byte(fmt.Sprint("big ", i))}) //nolint:errcheck
+	}
+	st.SaveDocument(ctx, small.ID, store.Document{CanonicalURL: "s", MIME: "text/plain", Content: []byte("small")}) //nolint:errcheck
+
+	if _, err := ScheduleExtraction(ctx, st, ExtractOptions{MaxQueuedTasks: 4, MaxDocsPerBatch: 5}); err != nil {
+		t.Fatal(err)
+	}
+	var queued int
+	st.DB.QueryRow(ctx, `SELECT count(*) FROM extraction e JOIN raw_document r ON r.id = e.raw_document_id WHERE r.source_id = $1`, small.ID).Scan(&queued) //nolint:errcheck
+	if queued != 1 {
+		t.Fatal("the small source was starved by the big source's backlog")
+	}
+}
