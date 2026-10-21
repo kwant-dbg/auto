@@ -43,8 +43,7 @@ founder:
     workflow_orchestration: 2
   excluded_domains: [regulated_legal_advice, medical, securities]
   employment_constraints:
-    conflict_check_required: true      # F1 gate
-    excluded_overlap: ["<employer's line of business — fill in privately>"]
+    conflict_check_required: false     # F1 gate disabled by founder decision
   solo_operability:
     max_sales_cycle_days: 60
     allow_24x7_sla: false
@@ -125,7 +124,7 @@ Priority: **P0** = Phase 1 must-have · **P1** = Phase 2 · **P2** = Phase 3+.
 | ID | Requirement | P |
 |---|---|---|
 | OPP-1 | Triage creates an Opportunity from a Problem meeting entry criteria (≥ 2 independent origins or 1 T1 observation) | P0 |
-| OPP-2 | Gates F1–F4 and M1–M6 (see `03` §2.1) each hold PASS/FAIL/UNKNOWN with evidence links | P0 |
+| OPP-2 | Gates F1–F4 and M1–M6 (see `03` §2.1) each hold PASS/FAIL/UNKNOWN with evidence links; F1 is skipped when `conflict_check_required: false` (current setting) | P0 |
 | OPP-3 | Each UNKNOWN gate and each factor with evidence ≤ T6 creates a Question | P0 |
 | OPP-4 | Kill questions (competitor sweep, prospect-list feasibility, unit-cost sanity, spend evidence) are created first and ordered by P(kill)/cost | P0 |
 | OPP-5 | Factors are stored as (low, base, high) + evidence tier + citations; factors with only T6–T7 evidence are clamped to configured wide priors | P0 |
@@ -286,7 +285,7 @@ Postgres 16 + pgvector. All tables have `id` (UUID/ULID), `created_at`. LLM-prod
 
 1. **Language:** Python (recommended for ecosystem) or Go (review fluency). See `04` §7.
 2. **Which app marketplace** to use as the Phase 1 marketplace source (pick one with permitted access and a segment of interest).
-3. **Employment check:** confirm the scope of your employment agreement's IP/moonlighting clauses and fill in `excluded_overlap`.
+3. ~~**Employment check**~~: resolved. The founder doesn't need it, so the F1 gate is disabled in the founder profile.
 4. **Model access mechanism:** confirm whether usage is metered API or a subscription plan, and whether that plan permits unattended automated use at the intended volume.
 5. **Budgets:** daily caps for LLM and paid APIs.
 6. **Red-team provider:** whether to use a second model provider for adversarial review.

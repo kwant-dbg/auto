@@ -77,7 +77,7 @@ Within a stage, the scheduler orders that stage's questions by **P(kill) ÷ cost
 2. **Prospect-list feasibility** (≈ minutes): can we find 50 named organisations in this segment with public contact paths?
 3. **Unit-cost sanity** (≈ minutes): does running the core workflow on a sample input with current models cost < 40% of the plausible price?
 4. **Spend evidence** (≈ tens of minutes): can we find T1–T3 evidence that this buyer spends on this job today?
-5. **Founder gates** (founder: seconds): any employment, licensing, or solo-operability conflict?
+5. **Founder gates** (founder: seconds): any licensing or solo-operability conflict? (The F1 employment check is optional and currently disabled.)
 
 Only after these do the expensive questions run: market sizing, channel research, defensibility analysis, technical deep-dive.
 

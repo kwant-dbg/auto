@@ -33,7 +33,7 @@ Each gate returns **PASS / FAIL / UNKNOWN**. FAIL kills the opportunity (or park
 
 | Gate | Fails when |
 |---|---|
-| F1 Employment conflict | Overlaps employer's business or would plausibly use employer IP or confidential knowledge |
+| F1 Employment conflict *(optional; disabled in the current founder profile)* | Overlaps employer's business or would plausibly use employer IP or confidential knowledge |
 | F2 Regulated practice | Requires a professional licence or creates professional-advice liability (legal, medical, tax advice, securities) the founder can't carry |
 | F3 Solo-operability | Needs 24/7 human on-call SLAs, enterprise security reviews (e.g., SOC 2) before the first sale, or a sales cycle > ~60 days, *for the first 10 customers* |
 | F4 Ethics/ToS | The product depends on violating platform terms, scraping restricted data, or deceptive practices |

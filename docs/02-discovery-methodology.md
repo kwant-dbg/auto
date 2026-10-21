@@ -141,7 +141,7 @@ Run a structured **founder self-interview** once, with a guided questionnaire ad
 - Vendor products you've seen teams overpay for or complain about.
 - Communities where you already have credibility (talks, OSS, colleagues, ex-colleagues).
 
-Then expand each item with lenses 2, 5, and 8 to test whether it generalises beyond your own organisations. **Check your employment agreement before pursuing anything that overlaps your employer's business or uses knowledge gained there.**
+Then expand each item with lenses 2, 5, and 8 to test whether it generalises beyond your own organisations.
 
 ---
 
