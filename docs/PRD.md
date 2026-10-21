@@ -120,7 +120,7 @@ Priority: **P0** = Phase 1 must-have · **P1** = Phase 2 · **P2** = Phase 3+.
 | PRB-2 | Candidate problems are found by the best match against **every member** of each problem: pgvector cosine when embeddings are configured, pg_trgm text similarity otherwise (so clustering keeps working without an embedding server). Attach above `τ_high`; adjudicate by LLM in `[τ_low, τ_high)` with verdict ∈ {same, narrower, broader, different} and group labels so one batch can't create duplicate problems; below `τ_low` create a problem. Every decision is logged in `cluster_decision` | P0 |
 | PRB-3 | Problems form a hierarchy (parent_id) | P0 |
 | PRB-4 | Compute independent-origin count per problem (author/org/near-dup/canonical-URL clustering) | P0 |
-| PRB-5 | Weekly re-clustering with LLM-reviewed merge/split proposals | P1 |
+| PRB-5 | Consolidation pass (built in week 3, pulled forward from P1): problems that matter are compared with similar problems and true duplicates (same actor and job, so one product would serve both) are merged; a duplicate opportunity is closed with reason `duplicate`. Triage waits until clustering and consolidation have caught up. Splitting over-merged problems is still P1 | P0 |
 | PRB-6 | Thresholds calibrated against a labelled pair set; report precision/recall | P0 |
 
 ### 6.4 Opportunities, gates, questions

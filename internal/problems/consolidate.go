@@ -18,8 +18,11 @@ import (
 // ConsolidateTaskType merges duplicate problems (PRB-5).
 const ConsolidateTaskType = "consolidate"
 
-// ConsolidatePromptVersion is the consolidation prompt in use.
-const ConsolidatePromptVersion = "v1"
+// ConsolidatePromptVersion is the consolidation prompt in use. v2 (week 3)
+// merges problems one product would serve, treating different gaps in the
+// same job as features of one opportunity; v1 also required the same obstacle,
+// which left fragments of one opportunity apart.
+const ConsolidatePromptVersion = "v2"
 
 // ConsolidateStats summarises a run.
 type ConsolidateStats struct {
@@ -144,6 +147,13 @@ func (c *Clusterer) Consolidate(ctx context.Context, taskID *int64, maxAnchors i
 		}
 	}
 	return st, nil
+}
+
+// ResetConsolidation makes every active problem eligible again, e.g. after a
+// new consolidation prompt.
+func ResetConsolidation(ctx context.Context, st *store.Store) error {
+	_, err := st.DB.Exec(ctx, `UPDATE problem SET consolidated_at = NULL WHERE status = 'active'`)
+	return err
 }
 
 func (c *Clusterer) markConsolidated(ctx context.Context, id int64) error {

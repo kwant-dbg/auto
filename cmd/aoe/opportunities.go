@@ -17,6 +17,7 @@ import (
 	"github.com/kwant-dbg/auto/internal/app"
 	"github.com/kwant-dbg/auto/internal/config"
 	"github.com/kwant-dbg/auto/internal/llm"
+	"github.com/kwant-dbg/auto/internal/problems"
 	"github.com/kwant-dbg/auto/internal/store"
 )
 
@@ -52,7 +53,17 @@ func clusterCmd(ctx context.Context, cfg *config.Config, st *store.Store) error 
 	return nil
 }
 
-func consolidateCmd(ctx context.Context, cfg *config.Config, st *store.Store) error {
+func consolidateCmd(ctx context.Context, cfg *config.Config, st *store.Store, args []string) error {
+	fs := flag.NewFlagSet("consolidate", flag.ContinueOnError)
+	all := fs.Bool("all", false, "re-consider every problem (e.g. after a new consolidation prompt)")
+	if err := fs.Parse(args); err != nil {
+		return err
+	}
+	if *all {
+		if err := problems.ResetConsolidation(ctx, st); err != nil {
+			return err
+		}
+	}
 	client := llmOrNil(ctx, cfg, st)
 	if client == nil {
 		return errors.New("consolidation needs Claude")

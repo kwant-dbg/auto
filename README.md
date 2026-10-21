@@ -56,7 +56,8 @@ AOE succeeds if the founder spends their few weekly hours on **opportunities wit
 | Embeddings (Ollama or TEI) + sweeper | `internal/embed` | ✅ tested against fake servers; Ollama itself not run here |
 | `aoe-mcp` tools: `fetch_and_snapshot`, `kb_search`, `search_hn`, `search_github_issues` | `internal/tools`, `cmd/aoe-mcp` | ✅ tested (incl. an in-memory MCP round trip); **live**: fetch, HN; GitHub search untested live (blocked in the build sandbox) |
 | Problems: candidate search against every member (pgvector, or pg_trgm without embeddings), auto attach/create, batched model adjudication with hierarchy; every decision logged | `internal/problems` | ✅ tested |
-| Triage → opportunities: founder profile, code-enforced gate rules, lifecycle decision with reason codes, kill questions, re-triage when evidence doubles | `internal/triage`, `internal/founder` | ✅ tested |
+| Consolidation: merges duplicate problems (one product would serve both), closes duplicate opportunities; triage waits until it has caught up | `internal/problems` | ✅ tested; **live**: 248 merges over 1,810 observations |
+| Triage → opportunities: founder profile, code-enforced gate rules, lifecycle decision with reason codes, kill questions, re-triage when evidence doubles | `internal/triage`, `internal/founder` | ✅ tested; **live**: 40 problems triaged (daily cap) |
 | CLI, worker, scheduler; Dockerfile + compose (Postgres, worker, scheduler, Ollama, Metabase) | `cmd/`, root | ✅ smoke-tested locally; Docker build not run here |
 
 **Next (week 4):** the research agent (answers questions with the `aoe-mcp` tools), the finding verifier, the assessor (factor ranges, Monte Carlo, weakest link) and the Bull/Bear/Judge debate.

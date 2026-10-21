@@ -25,8 +25,9 @@ import (
 // TaskType is the queue task type.
 const TaskType = "triage"
 
-// PromptVersion is the triage prompt in use.
-const PromptVersion = "v1"
+// PromptVersion is the triage prompt in use. v2 (week 3) restates the problem
+// as what its observations share, not one member's specific gap.
+const PromptVersion = "v2"
 
 // Gate codes (docs/03 §2.1).
 var (
