@@ -12,9 +12,12 @@ import (
 	"github.com/kwant-dbg/auto/internal/config"
 	"github.com/kwant-dbg/auto/internal/embed"
 	"github.com/kwant-dbg/auto/internal/extract"
+	"github.com/kwant-dbg/auto/internal/founder"
 	"github.com/kwant-dbg/auto/internal/jobs"
 	"github.com/kwant-dbg/auto/internal/llm"
+	"github.com/kwant-dbg/auto/internal/problems"
 	"github.com/kwant-dbg/auto/internal/store"
+	"github.com/kwant-dbg/auto/internal/triage"
 	"github.com/kwant-dbg/auto/internal/worker"
 )
 
@@ -76,6 +79,13 @@ func RegisterHandlers(ctx context.Context, w *worker.Worker, cfg *config.Config,
 	} else {
 		ex := &extract.Extractor{Store: st, LLM: client, Model: cfg.Models.Fast}
 		w.Handle(extract.TaskType, ex.Handle)
+		w.Handle(problems.TaskType, Clusterer(cfg, st, client).Handle)
+		tr, err := Triager(cfg, st, client)
+		if err != nil {
+			log.Error("triage disabled: founder profile", "err", err)
+		} else {
+			w.Handle(triage.TaskType, tr.Handle)
+		}
 		go recheck(ctx, runner, log)
 	}
 
@@ -105,6 +115,24 @@ func recheck(ctx context.Context, r *claude.Runner, log *slog.Logger) {
 			}
 		}
 	}
+}
+
+// Clusterer builds the problem clusterer; client may be nil (no adjudication).
+func Clusterer(cfg *config.Config, st *store.Store, client *llm.Client) *problems.Clusterer {
+	c := &problems.Clusterer{Store: st, Model: cfg.Models.Mid, Cfg: cfg.Clustering}
+	if client != nil {
+		c.LLM = client
+	}
+	return c
+}
+
+// Triager builds the triager with the founder profile.
+func Triager(cfg *config.Config, st *store.Store, client *llm.Client) (*triage.Triager, error) {
+	prof, err := founder.Load(cfg.FounderProfile)
+	if err != nil {
+		return nil, err
+	}
+	return &triage.Triager{Store: st, LLM: client, Model: cfg.Models.Mid, Founder: prof}, nil
 }
 
 // ExtractOptions maps config to scheduling options.

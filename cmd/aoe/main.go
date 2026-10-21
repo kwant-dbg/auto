@@ -47,6 +47,14 @@ Evidence
   fetch <url>                                   snapshot a public page (the agents' fetch_and_snapshot)
   hn <query>                                    search Hacker News comments and snapshot hits (the agents' search_hn)
 
+Problems and opportunities
+  cluster                                       group unassigned observations into problems now
+  problems [--min-origins N] [--limit N]        problems ranked by independent evidence
+  problem <id>                                  one problem and its evidence
+  triage [--problem ID] [--limit N]             triage eligible problems now (or one problem)
+  opportunities [--state S]                     opportunities with gates and open questions
+  opportunity <id>                              one opportunity in full
+
 Operations
   stats                           pipeline health: documents, extraction, rejection rate, observations by tier
   tasks                           queue summary and recent dead letters
@@ -107,6 +115,18 @@ func run(ctx context.Context, args []string) error {
 		return fetchCmd(ctx, cfg, st, rest)
 	case "hn":
 		return hnCmd(ctx, cfg, st, rest)
+	case "cluster":
+		return clusterCmd(ctx, cfg, st)
+	case "problems":
+		return problemsCmd(ctx, st, rest)
+	case "problem":
+		return problemCmd(ctx, st, rest)
+	case "triage":
+		return triageCmd(ctx, cfg, st, rest)
+	case "opportunities":
+		return opportunitiesCmd(ctx, st, rest)
+	case "opportunity":
+		return opportunityCmd(ctx, st, rest)
 	case "pause", "resume":
 		if err := st.SetPaused(ctx, cmd == "pause"); err != nil {
 			return err

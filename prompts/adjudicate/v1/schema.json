@@ -1,0 +1,21 @@
+{
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["decisions"],
+  "properties": {
+    "decisions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["observation_id", "relation", "problem_id", "new_group"],
+        "properties": {
+          "observation_id": {"type": "integer"},
+          "relation": {"type": "string", "enum": ["same", "narrower", "broader", "different"]},
+          "problem_id": {"type": "integer"},
+          "new_group": {"type": "string", "maxLength": 20}
+        }
+      }
+    }
+  }
+}

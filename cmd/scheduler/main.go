@@ -14,7 +14,9 @@ import (
 	"github.com/kwant-dbg/auto/internal/config"
 	"github.com/kwant-dbg/auto/internal/embed"
 	"github.com/kwant-dbg/auto/internal/jobs"
+	"github.com/kwant-dbg/auto/internal/problems"
 	"github.com/kwant-dbg/auto/internal/store"
+	"github.com/kwant-dbg/auto/internal/triage"
 )
 
 func main() {
@@ -74,5 +76,13 @@ func runTick(ctx context.Context, cfg *config.Config, st *store.Store, log *slog
 		if _, err := embed.Schedule(ctx, st); err != nil {
 			log.Error("schedule embedding", "err", err)
 		}
+	}
+	if _, err := problems.Schedule(ctx, st, cfg.Clustering.UseVectors); err != nil {
+		log.Error("schedule clustering", "err", err)
+	}
+	if n, err := triage.Schedule(ctx, st, cfg.Triage); err != nil {
+		log.Error("schedule triage", "err", err)
+	} else if n > 0 {
+		log.Info("triage enqueued", "count", n)
 	}
 }

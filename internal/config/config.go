@@ -11,22 +11,28 @@ import (
 
 	"github.com/kwant-dbg/auto/internal/claude"
 	"github.com/kwant-dbg/auto/internal/embed"
+	"github.com/kwant-dbg/auto/internal/problems"
 	"github.com/kwant-dbg/auto/internal/store"
+	"github.com/kwant-dbg/auto/internal/triage"
 )
 
 // Config is the runtime configuration. ${VAR} references are expanded from
 // the environment before parsing.
 type Config struct {
-	DatabaseURL string        `yaml:"database_url"`
-	BlobDir     string        `yaml:"blob_dir"`
-	Claude      claude.Config `yaml:"claude"`
-	Worker      Worker        `yaml:"worker"`
-	Scheduler   Scheduler     `yaml:"scheduler"`
-	Limits      Limits        `yaml:"limits"`
-	Models      Models        `yaml:"models"`
-	HTTP        HTTP          `yaml:"http"`
-	Extraction  Extraction    `yaml:"extraction"`
-	Embeddings  embed.Config  `yaml:"embeddings"`
+	DatabaseURL string          `yaml:"database_url"`
+	BlobDir     string          `yaml:"blob_dir"`
+	Claude      claude.Config   `yaml:"claude"`
+	Worker      Worker          `yaml:"worker"`
+	Scheduler   Scheduler       `yaml:"scheduler"`
+	Limits      Limits          `yaml:"limits"`
+	Models      Models          `yaml:"models"`
+	HTTP        HTTP            `yaml:"http"`
+	Extraction  Extraction      `yaml:"extraction"`
+	Embeddings  embed.Config    `yaml:"embeddings"`
+	Clustering  problems.Config `yaml:"clustering"`
+	Triage      triage.Options  `yaml:"triage"`
+	// FounderProfile is the path of config/founder.yaml (PRD §4).
+	FounderProfile string `yaml:"founder_profile"`
 
 	TOS     []store.TOSEntry   `yaml:"tos"`
 	Sources []store.SourceSpec `yaml:"sources"`
@@ -133,6 +139,12 @@ func (c *Config) defaults() {
 	}
 	if c.Embeddings.Provider != "" && c.Embeddings.Dimensions == 0 {
 		c.Embeddings.Dimensions = 768
+	}
+	c.Clustering.Defaults()
+	c.Clustering.UseVectors = c.Embeddings.Enabled()
+	c.Triage.Defaults()
+	if c.FounderProfile == "" {
+		c.FounderProfile = "config/founder.yaml"
 	}
 }
 

@@ -34,6 +34,26 @@ extraction:
   max_docs_per_batch: 20
   max_bytes_per_batch: 60000
 
+# Problems (docs/02 §6). Similarity is cosine for vectors (when embeddings
+# are configured) or pg_trgm text similarity otherwise. Between the two
+# thresholds the model adjudicates. Calibrate on labelled pairs.
+clustering:
+  vector_high: 0.92
+  vector_low: 0.75
+  trigram_high: 0.85
+  trigram_low: 0.25
+  candidates: 5
+  max_per_run: 200
+  adjudicate_batch: 15
+
+# Triage turns problems into opportunities. A problem needs this many
+# independent origins (different buyers, reviewers or sites) first.
+triage:
+  min_independent_origins: 2
+  max_per_day: 40
+
+founder_profile: config/founder.yaml
+
 # Local open-source embedding model (docs/04 §7). Empty provider disables
 # embeddings; docker-compose sets these for its bundled Ollama service.
 embeddings:
