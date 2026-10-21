@@ -305,7 +305,7 @@ func (s *Server) KBSearch(ctx context.Context, in KBInput) (KBOutput, error) {
 	limit = min(limit, 25)
 	rows, err := s.Store.DB.Query(ctx, `
 		SELECT o.id, o.raw_document_id, o.quote, o.category, o.evidence_tier,
-		       o.actor_segment || ' needs to ' || o.job || CASE WHEN o.obstacle <> '' THEN ' but ' || o.obstacle ELSE '' END,
+		       o.actor_segment || ' need to ' || o.job || CASE WHEN o.obstacle <> '' THEN ' but ' || o.obstacle ELSE '' END,
 		       r.canonical_url, s.name
 		FROM observation o
 		JOIN raw_document r ON r.id = o.raw_document_id

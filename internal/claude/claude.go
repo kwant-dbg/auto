@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"syscall"
@@ -110,10 +111,16 @@ func New(cfg Config) (*Runner, error) {
 	if err := CheckEnv(os.Environ()); err != nil {
 		return nil, err
 	}
+	// Calls run inside WorkDir, so every path handed to the CLI must be absolute.
+	abs, err := filepath.Abs(cfg.WorkDir)
+	if err != nil {
+		return nil, err
+	}
+	cfg.WorkDir = abs
 	if err := os.MkdirAll(cfg.WorkDir, 0o700); err != nil {
 		return nil, err
 	}
-	cfg.EmptyMCPCfg = cfg.WorkDir + "/.aoe-empty-mcp.json"
+	cfg.EmptyMCPCfg = filepath.Join(cfg.WorkDir, ".aoe-empty-mcp.json")
 	if err := os.WriteFile(cfg.EmptyMCPCfg, []byte(`{"mcpServers":{}}`), 0o600); err != nil {
 		return nil, err
 	}

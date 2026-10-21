@@ -70,7 +70,7 @@ func observationsCmd(ctx context.Context, st *store.Store, args []string) error 
 	}
 	rows, err := st.DB.Query(ctx, `
 		SELECT o.id, o.evidence_tier, o.category, o.specificity, s.name,
-		       o.actor_segment || ' needs to ' || o.job || CASE WHEN o.obstacle <> '' THEN ' but ' || o.obstacle ELSE '' END,
+		       o.actor_segment || ' need to ' || o.job || CASE WHEN o.obstacle <> '' THEN ' but ' || o.obstacle ELSE '' END,
 		       o.quote, o.injection_suspect
 		FROM observation o JOIN raw_document r ON r.id = o.raw_document_id JOIN source s ON s.id = r.source_id
 		WHERE o.evidence_tier <= $2 ORDER BY o.id DESC LIMIT $1`, *limit, *tier)

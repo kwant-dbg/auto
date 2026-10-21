@@ -2,7 +2,7 @@
 
 Pre-implementation strategy and architecture for a personal system that finds, evaluates, and validates commercially viable software opportunities for a solo technical founder.
 
-**Status:** design review complete and founder decisions recorded (Go; Claude Enterprise subscription via headless Claude Code; Claude-only Bull/Bear/Judge debate; marketplaces as one evidence source among several, with general-purpose tools in scope; week-8 stop rule accepted). Phase 1 build in progress: week 1 is done (see **Running it** below).
+**Status:** design review complete and founder decisions recorded (Go; Claude Enterprise subscription via headless Claude Code; Claude-only Bull/Bear/Judge debate; marketplaces as one evidence source among several, with general-purpose tools in scope; week-8 stop rule accepted). Phase 1 build in progress: weeks 1–2 are done (see **Running it** below).
 
 ## The core thesis
 
@@ -41,20 +41,33 @@ AOE succeeds if the founder spends their few weekly hours on **opportunities wit
 
 ## Running it
 
-### What's built (Phase 1, week 1)
+### What's built (Phase 1, weeks 1–2)
 
 | Piece | Where | Status |
 |---|---|---|
-| Full Postgres schema (PRD §8) + labour views, embedded migrations | `migrations/` | ✅ tested |
-| Content-addressed snapshot store, versioned raw documents | `internal/store` | ✅ tested |
-| Work queue: dedupe keys, `SKIP LOCKED` leases, heartbeats, retries, dead letters, kill switch | `internal/queue`, `internal/worker` | ✅ tested |
-| Headless Claude runner (`claude -p`): schema output, tool allowlists, subscription-auth guard, timeouts, rate-limit detection | `internal/claude` | ✅ tested with a fake CLI; real `claude auth status` check verified |
-| ToS register gating, per-source cadence and back-off, per-source run lock | `internal/store`, `internal/collect` | ✅ tested |
-| Federal service-contract awards connector (USAspending) | `internal/connectors/usaspending` | ✅ tested; live run: 327 awards for one day, no duplicates on re-run |
+| Full Postgres schema (PRD §8), labour views, extraction tracking, metrics; embedded migrations | `migrations/` | ✅ tested |
+| Content-addressed snapshot store, versioned raw documents, prompt-injection tripwire | `internal/store` | ✅ tested |
+| Work queue: dedupe keys, `SKIP LOCKED` leases, heartbeats, retries, dead letters, deferral, kill switch | `internal/queue`, `internal/worker` | ✅ tested |
+| Headless Claude runner + gateway: schema output, tool allowlists, subscription-auth guard, daily turn cap, rate-limit deferral, call ledger | `internal/claude`, `internal/llm` | ✅ tested; **live**: auth check, WebSearch probe and MCP tools probe all pass |
+| Federal service-contract awards (USAspending) | `internal/connectors/usaspending` | ✅ tested; **live**: 327 awards for one day |
+| App marketplaces: one connector, Atlassian + WordPress adapters; listings and low-star reviews as text, installs/ratings/prices as daily metrics | `internal/connectors/marketplace` | ✅ tested; **live** against both APIs |
 | O*NET + BLS OEWS + AI-usage import → ranked task-spend seeds | `internal/labour` | ✅ tested with fixtures |
-| `aoe` CLI, `worker`, `scheduler`; Dockerfile + compose | `cmd/`, root | ✅ smoke-tested locally; Docker build not run here |
+| Extraction: verbatim quotes located by code, tier by rule, origin keys, rejected quotes logged; batch scheduler with backpressure | `internal/extract`, `internal/evidence`, `internal/jobs` | ✅ tested; **live**: 29 documents → 27 observations, 0 rejected quotes |
+| Embeddings (Ollama or TEI) + sweeper | `internal/embed` | ✅ tested against fake servers; Ollama itself not run here |
+| `aoe-mcp` tools: `fetch_and_snapshot`, `kb_search`, `search_hn`, `search_github_issues` | `internal/tools`, `cmd/aoe-mcp` | ✅ tested (incl. an in-memory MCP round trip); **live**: fetch, HN; GitHub search untested live (blocked in the build sandbox) |
+| CLI, worker, scheduler; Dockerfile + compose (Postgres, worker, scheduler, Ollama, Metabase) | `cmd/`, root | ✅ smoke-tested locally; Docker build not run here |
 
-**Next (week 2):** extractor + span verifier, local embedding server, `aoe-mcp` tool server, generic app-marketplace connector, HN/GitHub search.
+**Next (week 3):** problems: clustering normalised observations (ANN attach, LLM adjudication, hierarchy), independence counts, triage gates, opportunities and questions.
+
+### Useful commands
+
+```sh
+aoe stats                          # documents, extraction progress, rejection rate, observations by tier, Claude usage today
+aoe observations --tier 1          # strongest evidence first
+aoe kb "month-end reconciliation"  # search collected evidence
+aoe extract --dry-run --limit 3    # see the exact prompt the extractor will send
+aoe claude check --probe-tools --probe-websearch
+```
 
 ### Quick start (Docker)
 
@@ -64,7 +77,7 @@ cat > .env <<'ENV'
 CLAUDE_CODE_OAUTH_TOKEN=<token>
 POSTGRES_PASSWORD=<choose one>
 ENV
-docker compose up -d --build                # postgres, worker, scheduler
+docker compose up -d --build                # postgres, worker, scheduler, ollama (+ model pull)
 docker compose run --rm worker aoe claude check --probe-websearch
 docker compose run --rm worker aoe sources
 ```

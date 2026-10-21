@@ -202,3 +202,24 @@ func TestCheck(t *testing.T) {
 		t.Fatalf("version mismatch: %v", err)
 	}
 }
+
+func TestRelativeWorkDirBecomesAbsolute(t *testing.T) {
+	bin, _ := fakeClaude(t)
+	for _, k := range ForbiddenEnv {
+		t.Setenv(k, "")
+	}
+	t.Chdir(t.TempDir())
+	r, err := New(Config{Binary: bin, WorkDir: "data/wd"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	args := r.Args(Spec{})
+	i := slices.Index(args, "--mcp-config")
+	if !filepath.IsAbs(args[i+1]) {
+		t.Fatalf("--mcp-config %q is relative; calls run inside the workdir", args[i+1])
+	}
+	path, err := r.WriteMCPConfig("/usr/bin/aoe-mcp", nil)
+	if err != nil || !filepath.IsAbs(path) {
+		t.Fatalf("mcp config path %q err %v", path, err)
+	}
+}

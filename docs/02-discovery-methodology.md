@@ -173,7 +173,7 @@ Source connector ──► RawDocument (snapshot, hash, timestamps)
                          ▼
           Extractor (LLM, no tools, JSON schema)
                          │  emits 0..n Observations, each with:
-                         │   - verbatim span offsets into the snapshot
+                         │   - a verbatim quote (code locates it: byte span in the snapshot)
                          │   - normalised job statement (actor | job | obstacle | consequence)
                          │   - evidence tier, specificity score, spend hints
                          ▼

@@ -6,6 +6,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"log/slog"
 	"os"
 	"os/signal"
 	"strings"
@@ -14,7 +15,6 @@ import (
 	"time"
 
 	"github.com/kwant-dbg/auto/internal/app"
-	"github.com/kwant-dbg/auto/internal/claude"
 	"github.com/kwant-dbg/auto/internal/collect"
 	"github.com/kwant-dbg/auto/internal/config"
 	"github.com/kwant-dbg/auto/internal/labour"
@@ -70,7 +70,6 @@ func run(ctx context.Context, args []string) error {
 	}
 	cmd, rest := args[0], args[1:]
 
-	// Commands that don't need the database.
 	if cmd == "claude" {
 		return claudeCmd(ctx, rest)
 	}
@@ -122,15 +121,17 @@ func claudeCmd(ctx context.Context, args []string) error {
 	}
 	fs := flag.NewFlagSet("claude check", flag.ContinueOnError)
 	probe := fs.Bool("probe-websearch", false, "run one headless WebSearch call (uses the subscription)")
+	probeTools := fs.Bool("probe-tools", false, "run one headless call to AOE's kb_search tool via aoe-mcp (uses the subscription)")
 	if err := fs.Parse(args[1:]); err != nil {
 		return err
 	}
-	cfg, err := config.Load(app.ConfigPath())
+	cfg, st, err := app.Open(ctx, app.ConfigPath())
 	if err != nil {
 		return err
 	}
-	r, err := claude.New(cfg.Claude)
-	if err != nil {
+	defer st.Close()
+	_, r, err := app.NewLLM(ctx, cfg, st, slog.New(slog.NewTextHandler(os.Stderr, nil)))
+	if r == nil {
 		return err
 	}
 	h, err := r.Check(ctx)
@@ -139,8 +140,20 @@ func claudeCmd(ctx context.Context, args []string) error {
 	if err != nil {
 		return err
 	}
+	if *probeTools {
+		ok, hits, res, err := r.ProbeTools(ctx, cfg.Models.Fast, "invoice")
+		fmt.Printf("tools probe: kb_search worked=%v hits=%d turns=%d duration=%s\n", ok, hits, res.NumTurns, res.Duration.Round(time.Millisecond))
+		if err != nil {
+			return fmt.Errorf("tools probe failed: %w", err)
+		}
+		if !ok {
+			return errors.New("kb_search was not reachable through aoe-mcp")
+		}
+	}
 	if !*probe {
-		fmt.Println("ok (add --probe-websearch to confirm WebSearch works headless under the subscription)")
+		if !*probeTools {
+			fmt.Println("ok (add --probe-websearch or --probe-tools for live checks)")
+		}
 		return nil
 	}
 	ok, res, err := r.ProbeWebSearch(ctx, cfg.Models.Fast)

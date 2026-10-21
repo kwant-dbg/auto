@@ -83,8 +83,8 @@ flowchart LR
 | Component | Input → Output | Notes |
 |---|---|---|
 | **Source connectors** | Source config → `raw_document` | One module per source. Incremental cursors, rate limits, ToS record, content hash, canonical URL. No LLM. |
-| **Extractor** | `raw_document` → 0..n `observation` (JSON) | **No tools, no network.** Must return verbatim span offsets. Batched; cheap model tier is fine. |
-| **Citation verifier** | observation/finding → pass/fail | Deterministic: `snapshot[start:end] == quote` after whitespace normalisation. Rejects extractions with missing or mismatched spans. |
+| **Extractor** | `raw_document` → 0..n `observation` (JSON) | **No tools, no network.** Returns verbatim quotes; code computes the byte spans. Batched; cheap model tier is fine. |
+| **Citation verifier** | observation/finding → pass/fail | Deterministic: the quote must be found in the stored snapshot (exactly, or ignoring whitespace or JSON escaping); the stored quote is the snapshot slice. Unfound quotes are rejected. |
 | **Normaliser + embedder** | observation → normalised job statement + vector | Template: actor/segment, job, obstacle, consequence. |
 | **Clusterer + Adjudicator** | vectors → problem hierarchy | ANN attach / LLM adjudicate ambiguous band / weekly density re-cluster (see `02` §6). |
 | **Triage** | problem → opportunity (or not) | Runs the *cheap* gates (M1, M2, F1–F4) with available evidence; creates UNKNOWN questions. |

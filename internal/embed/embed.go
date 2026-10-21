@@ -125,7 +125,7 @@ func (c *Client) Embed(ctx context.Context, inputs []string) ([][]float32, error
 func Statement(actor, job, obstacle, consequence string) string {
 	var b strings.Builder
 	b.WriteString(strings.TrimSpace(actor))
-	b.WriteString(" needs to ")
+	b.WriteString(" need to ")
 	b.WriteString(strings.TrimSpace(job))
 	if o := strings.TrimSpace(obstacle); o != "" {
 		b.WriteString(" but ")

@@ -22,6 +22,9 @@ services:
     environment: &aoe-env
       AOE_DATABASE_URL: postgres://aoe:${POSTGRES_PASSWORD}@postgres:5432/aoe?sslmode=disable
       CLAUDE_CODE_OAUTH_TOKEN: ${CLAUDE_CODE_OAUTH_TOKEN:?set CLAUDE_CODE_OAUTH_TOKEN in .env}
+      AOE_EMBED_PROVIDER: ollama
+      AOE_EMBED_URL: http://ollama:11434
+      GITHUB_TOKEN: ${GITHUB_TOKEN:-}   # optional: raises GitHub search limits
     volumes:
       - aoedata:/app/data
     depends_on:
@@ -40,6 +43,23 @@ services:
         condition: service_healthy
     restart: unless-stopped
 
+  # Local embedding model (docs/04 §7). Embedding is optional: if Ollama is
+  # down, embed tasks retry and everything else keeps working.
+  ollama:
+    image: ollama/ollama:0.5.7
+    volumes:
+      - ollama:/root/.ollama
+    restart: unless-stopped
+
+  ollama-pull:
+    image: ollama/ollama:0.5.7
+    environment:
+      OLLAMA_HOST: http://ollama:11434
+    entrypoint: ["ollama", "pull", "nomic-embed-text"]
+    depends_on:
+      - ollama
+    restart: "no"
+
   # Read-only exploration UI (RPT-5). Connect it to the aoe database on first launch.
   metabase:
     image: metabase/metabase:v0.50.36
@@ -53,3 +73,4 @@ services:
 volumes:
   pgdata:
   aoedata:
+  ollama:

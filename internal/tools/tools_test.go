@@ -214,7 +214,7 @@ func TestMCPRoundTripAndKBSearch(t *testing.T) {
 	raw, _ := json.Marshal(res.StructuredContent)
 	var out KBOutput
 	json.Unmarshal(raw, &out) //nolint:errcheck
-	if len(out.Hits) != 1 || out.Hits[0].DocumentID != doc.ID || !strings.Contains(out.Hits[0].Statement, "bookkeepers at agencies needs to reconcile") {
+	if len(out.Hits) != 1 || out.Hits[0].DocumentID != doc.ID || !strings.Contains(out.Hits[0].Statement, "bookkeepers at agencies need to reconcile") {
 		t.Fatalf("kb hits = %+v", out)
 	}
 

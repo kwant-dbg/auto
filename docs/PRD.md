@@ -105,7 +105,7 @@ Priority: **P0** = Phase 1 must-have · **P1** = Phase 2 · **P2** = Phase 3+.
 | ID | Requirement | P |
 |---|---|---|
 | EXT-1 | Extractor is an LLM call with **no tools and no network**, constrained to a JSON schema | P0 |
-| EXT-2 | Each observation includes `span_start`, `span_end`, `quote`; the verifier rejects any whose quote ≠ snapshot slice (whitespace-normalised) | P0 |
+| EXT-2 | The model returns a verbatim `quote`; code locates it in the snapshot (exact, whitespace-insensitive, or JSON-escaped) and stores the byte span. A quote that can't be found is rejected and logged in `rejected_extraction`, never stored as evidence. (Models can't count characters reliably, so offsets are never taken from the model.) | P0 |
 | EXT-3 | Each observation includes a normalised statement: `actor_segment`, `job`, `obstacle`, `consequence` | P0 |
 | EXT-4 | Evidence tier is assigned **by rule** from (source type, extraction category), not by the LLM's opinion | P0 |
 | EXT-5 | Extract spend hints (amounts, frequencies, headcount, tools) as structured fields when present | P0 |

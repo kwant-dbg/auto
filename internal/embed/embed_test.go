@@ -63,7 +63,7 @@ func TestClients(t *testing.T) {
 }
 
 func TestStatementAndLiteral(t *testing.T) {
-	if s := embed.Statement(" Jira admins ", "export reports", "exports break", ""); s != "Jira admins needs to export reports but exports break" {
+	if s := embed.Statement(" Jira admins ", "export reports", "exports break", ""); s != "Jira admins need to export reports but exports break" {
 		t.Errorf("Statement = %q", s)
 	}
 	if l := embed.VectorLiteral([]float32{1, 0.5, -2}); l != "[1,0.5,-2]" {

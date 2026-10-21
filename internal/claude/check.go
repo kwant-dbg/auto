@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"regexp"
 	"strings"
 	"time"
@@ -111,7 +112,7 @@ func (r *Runner) ProbeWebSearch(ctx context.Context, model string) (bool, Result
 // (the aoe-mcp server over stdio) and points the runner at it. env is passed
 // to the server; the file is private because it can contain the database URL.
 func (r *Runner) WriteMCPConfig(command string, env map[string]string) (string, error) {
-	path := r.cfg.WorkDir + "/.aoe-mcp.json"
+	path := filepath.Join(r.cfg.WorkDir, ".aoe-mcp.json")
 	cfg := map[string]any{"mcpServers": map[string]any{
 		"aoe": map[string]any{"type": "stdio", "command": command, "args": []string{}, "env": env},
 	}}
@@ -132,4 +133,35 @@ var AOETools = []string{
 	"mcp__aoe__kb_search",
 	"mcp__aoe__search_hn",
 	"mcp__aoe__search_github_issues",
+}
+
+// ProbeTools runs one headless agent call that may only use AOE's kb_search
+// tool, to confirm the MCP server starts and its tools are reachable.
+func (r *Runner) ProbeTools(ctx context.Context, model, query string) (bool, int, Result, error) {
+	if r.cfg.MCPConfig == "" {
+		return false, 0, Result{}, fmt.Errorf("no MCP config: aoe-mcp was not found")
+	}
+	schema := json.RawMessage(`{"type":"object","properties":{"tool_worked":{"type":"boolean"},"hits":{"type":"integer"}},"required":["tool_worked","hits"]}`)
+	res, err := r.Run(ctx, Spec{
+		TaskType:      "probe.tools",
+		PromptVersion: "probe-v1",
+		Model:         model,
+		Prompt:        fmt.Sprintf("Call the kb_search tool once with the query %q. Report whether the call succeeded and how many hits it returned. If the tool is unavailable, set tool_worked to false and hits to 0.", query),
+		Schema:        schema,
+		UseMCP:        true,
+		AllowedTools:  []string{"mcp__aoe__kb_search"},
+		MaxTurns:      4,
+		Timeout:       3 * time.Minute,
+	})
+	if err != nil {
+		return false, 0, res, err
+	}
+	var out struct {
+		ToolWorked bool `json:"tool_worked"`
+		Hits       int  `json:"hits"`
+	}
+	if err := json.Unmarshal(res.Structured, &out); err != nil {
+		return false, 0, res, fmt.Errorf("%w: %v", ErrInvalidOutput, err)
+	}
+	return out.ToolWorked, out.Hits, res, nil
 }
