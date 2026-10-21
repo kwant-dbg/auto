@@ -18,12 +18,12 @@ v1.0 defines ten agents (A–J). Most of them are **a prompt plus an output sche
 | D. Market Researcher | **Researcher** agent, `market` / `competitor` question types | Agentic (tools) |
 | E. Commercial Analyst | **Assessor**: LLM fills factor ranges with citations; **code** does the math | LLM function + code |
 | F. Technical Feasibility | **Researcher** agent, `technical` question type; later **Prototype Builder** | Agentic |
-| G. Adversarial Researcher | **Red Team** agent: separate prompt, ideally a **different model family**, blinded to the bull-case score | Agentic |
+| G. Adversarial Researcher | **Debate**: a Bull advocate and a Bear (red team), each a separate Claude session, argue from cited evidence; a fresh Judge session rules. All are blinded to scores (see §4.1) | Agentic |
 | H. Validation Designer | **Assessor** sub-step: generates experiments from the weakest-link factor | LLM function |
 | I. Prototype Builder | **Builder** (Phase 4 only): coding agent in a sandbox | Agentic, sandboxed |
 | J. Orchestrator | **Scheduler / Admission Controller** (code) | Deterministic code |
 
-Result: **4 LLM roles** (Extractor, Adjudicator, Assessor, Researcher with question-type variants), **1 adversarial role** (Red Team), **1 later role** (Builder), and deterministic code for everything else.
+Result: **4 LLM roles** (Extractor, Adjudicator, Assessor, Researcher with question-type variants), **1 adversarial process** (Debate: Bull / Bear / Judge), **1 later role** (Builder), and deterministic code for everything else.
 
 ### Separate workers or dynamic roles? (v1.0 Q3)
 
@@ -58,7 +58,7 @@ flowchart LR
     RS --> FD[(finding)]
     FD --> VF[Verifier:<br/>span check + entailment]
     VF --> AS[Assessor:<br/>factors → EV ranges]
-    AS --> RT["Red team<br/>(different model)"]
+    AS --> RT["Debate<br/>(Bull vs Bear, Judge)"]
     RT --> AS
     AS --> Q
   end
@@ -92,7 +92,7 @@ flowchart LR
 | **Researcher** | question → findings | Agentic: web search + fetch + internal KB search. **Read-only tools.** Each finding must cite stored snapshots (fetched pages are snapshotted first). |
 | **Verifier** | finding → verified / unsupported / contradicted | Span check (deterministic) + entailment check (LLM, different prompt): "Does this quote support this claim? yes/partial/no". |
 | **Assessor** | verified findings → factor ranges, gates, EV distribution, weakest link, next experiments | LLM fills ranges with citations; **code** runs Monte Carlo and sensitivity. |
-| **Red Team** | dossier (minus scores) → objections with evidence, kill-questions | Ideally a different model family. Scored on *specific, evidenced* objections that later prove right. |
+| **Debate** | dossier (minus scores) → rulings on contested claims, surviving objections, kill-questions | Bull and Bear are independent Claude sessions; a fresh Judge rules. The Bear is scored on *specific, evidenced* objections that later prove right. See §4.1. |
 | **Reporter** | DB → markdown digest + cards | Templates, not free-form prose. |
 | **Approval queue + Action executor** | approved action → external effect | The **only** component with external-write credentials. Idempotency keys. No LLM in the execution path. |
 | **Builder** (Phase 4) | approved prototype spec → repo + tests + benchmark | Coding agent in an isolated container; no production credentials. |
@@ -122,9 +122,22 @@ Defence in depth against AI-generated misinformation:
 | 2 | **Entailment check**: separate LLM call judges whether the quote supports the claim, using an "overclaiming" rubric | Paraphrase inflation ("someone mentioned" → "users report") |
 | 3 | **Tier assignment by rule**, not by the researcher: tier comes from source type + extraction category | Agents upgrading their own evidence |
 | 4 | **Independence counting** in code | Echo chambers, syndication |
-| 5 | **Red team on a different model**, blinded to scores | Correlated optimism |
+| 5 | **Structured debate** (Bull vs. Bear, fresh Judge), blinded to scores, uncited arguments struck | Correlated optimism |
 | 6 | **Dual independent research** for opportunities entering validation: two Researcher runs with different seeds/models answer the same question set; disagreements become questions | Single-run variance, missed competitors |
 | 7 | **Human spot-check**: the weekly review includes 3 randomly sampled findings for the founder to grade (30 seconds each) | Systemic drift; gives the precision metric |
+
+### 4.1 Debate protocol (adversarial review, Claude-only)
+
+The founder chose to use Claude for every role rather than a second provider. Adversarial review is therefore a **structured debate between independent Claude sessions**, not a single critic:
+
+1. **Bull** (advocate) and **Bear** (red team) each start a *fresh session* with no shared context. Each gets the dossier's evidence and factor ranges, but **not** the EV, rankings or the other side's reasoning. Both have the same read-only research tools, so the Bear can go looking for the competitor or the free alternative.
+2. **Round 1:** each side files up to 5 arguments. Every argument must cite stored snapshots (span-checked like any finding). The Bear works through a fixed checklist: a strong incumbent at the same price, a free or general-agent substitute, unreachable buyers, no spend evidence, unit cost above price, and a buyer who is not the user.
+3. **Round 2:** each side sees the other's surviving arguments and files rebuttals, again with citations.
+4. **Verifier pass:** arguments whose citations fail the span or entailment check are struck before judging.
+5. **Judge** (a third fresh session) sees only the dossier facts and the verified arguments. It rules on each contested claim as *Bull holds / Bear holds / unresolved*. Its output is surviving objections, updated gate verdicts and new kill-questions. Unresolved claims become Questions.
+6. **Bounds:** exactly 2 rounds and one Judge pass per dossier version. The debate re-runs only when the dossier's evidence materially changes.
+
+**Caveat:** all three roles share one model's blind spots, so the debate reduces *process* bias (anchoring on the bull case, sycophancy toward a polished dossier) more than *knowledge* bias. The mitigations are mandatory citations, independent contexts, the Bear's checklist, and tracking which objections later proved right (`objection.later_outcome`). If the Bear's hit rate stays low, revisit the second-provider option.
 
 ---
 
@@ -185,9 +198,9 @@ The system is autonomous because **the queue is regenerated from state**, not fr
 
 Treat all collected content as hostile (prompt injection is the main threat):
 
-1. **Capability separation.** Components that read untrusted text (Extractor, Researcher, Red Team, Adjudicator) have **no write tools to the outside world and no credentials**. The only external-write component (Action executor) runs deterministic code on human-approved, structured action records. It never runs on LLM free text.
+1. **Capability separation.** Components that read untrusted text (Extractor, Researcher, Debate roles, Adjudicator) have **no write tools to the outside world and no credentials**. The only external-write component (Action executor) runs deterministic code on human-approved, structured action records. It never runs on LLM free text.
 2. **Structured outputs only.** LLM outputs are parsed against JSON schemas. Fields that will be shown to the human are rendered as text, never executed or followed as instructions.
-3. **Injection canaries.** Flag snapshots containing instruction-like patterns directed at AI systems. Extracted observations from such content are tagged and down-weighted, and the red team is told about them.
+3. **Injection canaries.** Flag snapshots containing instruction-like patterns directed at AI systems. Extracted observations from such content are tagged and down-weighted, and the Debate's Bear and Judge are told about them.
 4. **Secrets.** API keys live in the worker environment, not in prompts or tool outputs. Search/fetch tools are implemented server-side with keys injected by code.
 5. **Egress controls.** Fetch tools enforce a denylist (internal networks, metadata endpoints) and per-domain rate limits.
 6. **Personal data minimisation.** Store author handles only when needed for independence counting. Hash them where possible, and never build profiles of individuals. Prospect lists contain **organisations and public business contact paths**, not personal data beyond what is needed.
@@ -203,7 +216,7 @@ Treat all collected content as hostile (prompt injection is the main threat):
 | Dedupe adjudication | Mid tier | Pairwise judgments, moderate volume |
 | Research agent | Top tier | Long-horizon tool use, synthesis |
 | Assessor | Top tier | Judgment with citations |
-| Red Team | Top tier, **different provider/family** if available | Reduce correlated errors |
+| Debate (Bull, Bear, Judge) | Top tier, three independent sessions | Reduce process bias; see §4.1 |
 | Pairwise ranking | Top tier, both orders | Position-bias cancellation |
 | Embeddings | One embedding model, pinned version | Changing it requires re-embedding; store `embedding_model` on every vector |
 

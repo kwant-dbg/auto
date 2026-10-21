@@ -52,7 +52,7 @@ Gates: F1–F4 ✓ · M1 ✓ · M2 ✓ · M3 ✓ (63 prospects) · M4 ? · M5 �
 Paths:  service-first (TTFD ~3 wks) · plugin on <marketplace> (TTFD ~8 wks)
 12-mo MRR:  P10 $0 · P50 $1.4k · P90 $6k   ·  P(≥$1k)=0.52  P(≥$5k)=0.14
 Weakest link: p_pay at $300/mo (evidence: T7 only)
-Red team's strongest objection: "<objection + evidence>"
+Debate: strongest surviving Bear objection: "<objection + evidence>" (Judge: Bear holds)
 Next experiment: 8 problem interviews from prospect list; kill if <2 report current spend ≥ $150/mo
   Founder cost: ~4 h · $0 · [approve] [defer] [kill: reason]
 ```

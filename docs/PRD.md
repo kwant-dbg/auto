@@ -142,7 +142,7 @@ Priority: **P0** = Phase 1 must-have · **P1** = Phase 2 · **P2** = Phase 3+.
 | RES-2 | Tools: `web_search`, `fetch_and_snapshot` (stores a RawDocument before anything can cite it), `kb_search`, `propose_question`; all read-only | P0 |
 | RES-3 | Findings are verified: span check (deterministic) + entailment (separate LLM call, overclaiming rubric) → {supported, partial, unsupported} | P0 |
 | RES-4 | Only `supported` findings update factors; `partial` may widen ranges only | P0 |
-| RES-5 | Red Team runs on each Dossier, blinded to EV/scores, using a different model family if configured; outputs objections with evidence and kill-questions | P0 |
+| RES-5 | Debate runs on each Dossier (`04` §4.1): Bull and Bear in independent Claude sessions, 2 cited rounds, uncited arguments struck, fresh Judge rules per contested claim; all blinded to EV/scores; outputs surviving objections, gate updates and kill-questions | P0 |
 | RES-6 | Dual independent research for opportunities entering Validating; disagreements become Questions | P1 |
 | RES-7 | Prospect-list builder tool (directories, licence registries, associations, marketplace vendor pages) | P1 (P0: via generic research) |
 
@@ -200,7 +200,8 @@ Priority: **P0** = Phase 1 must-have · **P1** = Phase 2 · **P2** = Phase 3+.
 | `research.<qtype>` (qtype ∈ competitor, prospects, unit_cost, spend, market, channel, technical, defensibility) | agent | top | web_search, fetch_and_snapshot, kb_search, propose_question | Finding[] |
 | `verify_entailment` | LLM fn | mid | none | supported/partial/unsupported |
 | `assess` | LLM fn + code | top | none | factor ranges, paths, First-10 plan, next experiments |
-| `red_team` | agent | top (alt family) | web_search, fetch_and_snapshot, kb_search | Objection[] |
+| `debate_bull`, `debate_bear` | agent | top (independent sessions) | web_search, fetch_and_snapshot, kb_search | Argument[] (cited) |
+| `debate_judge` | LLM fn | top (fresh session) | none | Ruling[], Objection[], Question[] |
 | `rank_pair` | LLM fn | top | none | choice + deciding evidence |
 | `baseline_b0` | LLM fn/agent | top | web_search | Card[] |
 | `digest` | code | none | none | markdown |
@@ -246,7 +247,7 @@ Postgres 16 + pgvector. All tables have `id` (UUID/ULID), `created_at`. LLM-prod
 | NFR-6 **Privacy** | Minimal personal data; author identifiers hashed; prospects are organisations; retention policy for uncited raw documents |
 | NFR-7 **Compliance** | ToS register gating; no bypassing auth, paywalls, anti-bot measures |
 | NFR-8 **Cost control** | Daily caps enforced before admission; cost per card and per advanced opportunity reported |
-| NFR-9 **Model independence** | Thin LLM interface; per-task-type model config; red team can use another provider |
+| NFR-9 **Model independence** | Thin LLM interface; per-task-type model config. Claude for every role by founder decision; the interface still permits another provider later |
 | NFR-10 **Operability** | Single-host `docker compose` deployment (Postgres, worker, scheduler); one-command backup |
 
 ## 10. Acceptance criteria
@@ -272,7 +273,7 @@ Postgres 16 + pgvector. All tables have `id` (UUID/ULID), `created_at`. LLM-prod
 |---|---|
 | Engine becomes the product | Phase gates; pre-committed stop rule; week-9 go/no-go |
 | Fabricated or inflated evidence | EXT-2 span verification; RES-3 entailment; EXT-4 rule-based tiers |
-| Correlated agent optimism | Red team blinded and on an alternative model; dual research; calibration shrinkage |
+| Correlated agent optimism | Blinded Bull/Bear debate with a fresh Judge; dual research; calibration shrinkage; Bear hit rate tracked |
 | Public-signal bias toward crowded markets | Source mix weighted to structured spend-revealing lenses |
 | Distribution in the abstract | M3 prospect-list gate; First-10 plan; founder-executability checks |
 | Loops and waste | Question-linked tasks, dedupe keys, earned budgets, saturation stopping, back-off |

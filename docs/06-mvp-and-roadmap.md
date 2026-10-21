@@ -55,14 +55,14 @@ Everything else waits.
 | Sources | (1) **O*NET + BLS OEWS + AI-usage index** static import and seed generation; (2) **one app marketplace** with an official API or permissive terms; (3) **public procurement** API (contract awards); (4) **Hacker News + GitHub issues** search for corroboration queries only. *(Optional 5th: ATS public job boards for a curated company list.)* |
 | Storage | Postgres + pgvector; content-addressed snapshot files |
 | Pipeline | Connectors → Extractor → span verifier → normaliser/embedder → clusterer (ANN attach + LLM adjudication) → problems |
-| Decide | Triage gates → opportunities → questions → scheduler → Researcher (web search + fetch/snapshot + KB search) → verifier → Assessor (factor ranges + Monte Carlo) → Red Team |
+| Decide | Triage gates → opportunities → questions → scheduler → Researcher (web search + fetch/snapshot + KB search) → verifier → Assessor (factor ranges + Monte Carlo) → Debate (Bull / Bear / Judge) |
 | Human | Weekly markdown digest (≤ 3 cards + "notable changes" + "blocked"), committed to a private repo + notification; CLI to rate cards, rank pairwise, record decisions with reason codes, set wake conditions |
 | Control | Postgres queue; nightly and weekly cron; budgets; dedupe keys; saturation stopping; dead-letter table |
 | Eval | Baseline B0 cards generated weekly; blind pairwise review in the digest; 3 random findings to spot-check per week |
 
 ### Explicitly **not** in Phase 1
 
-Dashboard UI (use Datasette/Metabase if needed), Temporal, prototype builder, any outreach automation, more than one LLM provider *except* for the red team, freelance-marketplace or large social-platform connectors, revenue modelling beyond the Monte Carlo, graph DB, Kubernetes, multi-user support, landing-page tooling.
+Dashboard UI (use Datasette/Metabase if needed), Temporal, prototype builder, any outreach automation, more than one LLM provider, freelance-marketplace or large social-platform connectors, revenue modelling beyond the Monte Carlo, graph DB, Kubernetes, multi-user support, landing-page tooling.
 
 ### Build sequence (each step is demoable)
 
@@ -71,7 +71,7 @@ Dashboard UI (use Datasette/Metabase if needed), Temporal, prototype builder, an
 | 1 | Schema + migrations; snapshot store; 2 connectors (O*NET/BLS import, procurement API); `llm_call` logging; budget ledger | SQL: tasks × industries × wage pool; 1k procurement awards stored |
 | 2 | Extractor + span verifier + normaliser + embeddings; marketplace connector; HN/GitHub search tool | Observations with verified spans; extraction precision on 50 hand-checked samples |
 | 3 | Clusterer + adjudicator (thresholds from Phase 0 labels); triage gates; opportunities + questions; scheduler with dedupe + budgets | Problem list with independence counts; dedupe P/R report |
-| 4 | Researcher agent (read-only tools, snapshot-before-cite); verifier (span + entailment); Assessor + Monte Carlo + weakest-link; Red Team | One full dossier generated unattended |
+| 4 | Researcher agent (read-only tools, snapshot-before-cite); verifier (span + entailment); Assessor + Monte Carlo + weakest-link; Bull/Bear debate + Judge | One full dossier generated unattended |
 | 5 | Digest + CLI feedback + pairwise ranking; baseline B0 job; saturation stopping; source back-off; first real weekly cycle | Founder's first weekly review; metrics report |
 
 ### Acceptance criteria (measured over weeks 4–8 of operation)
