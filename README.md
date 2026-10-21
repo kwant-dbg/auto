@@ -2,7 +2,7 @@
 
 Pre-implementation strategy and architecture for a personal system that finds, evaluates, and validates commercially viable software opportunities for a solo technical founder.
 
-**Status:** design review complete and founder decisions recorded (Go; Claude Enterprise subscription via headless Claude Code; Claude-only Bull/Bear/Judge debate; Atlassian Marketplace as first marketplace source; week-8 stop rule accepted). Ready for Phase 0 (one-week manual run), then Phase 1 build. No implementation code yet.
+**Status:** design review complete and founder decisions recorded (Go; Claude Enterprise subscription via headless Claude Code; Claude-only Bull/Bear/Judge debate; marketplaces as one evidence source among several, with general-purpose tools in scope; week-8 stop rule accepted). Phase 1 build in progress: week 1 is done (see **Running it** below).
 
 ## The core thesis
 
@@ -38,3 +38,58 @@ AOE succeeds if the founder spends their few weekly hours on **opportunities wit
 8. **Simplify the architecture**: about 4 LLM roles, deterministic orchestration, capability separation for prompt-injection safety.
 9. **Move customer contact earlier.** Evaluate service-first and marketplace paths alongside SaaS.
 10. **Evaluate against baselines**, calibrate on pre-registered predictions, and pre-commit a stop rule for the engine itself.
+
+## Running it
+
+### What's built (Phase 1, week 1)
+
+| Piece | Where | Status |
+|---|---|---|
+| Full Postgres schema (PRD §8) + labour views, embedded migrations | `migrations/` | ✅ tested |
+| Content-addressed snapshot store, versioned raw documents | `internal/store` | ✅ tested |
+| Work queue: dedupe keys, `SKIP LOCKED` leases, heartbeats, retries, dead letters, kill switch | `internal/queue`, `internal/worker` | ✅ tested |
+| Headless Claude runner (`claude -p`): schema output, tool allowlists, subscription-auth guard, timeouts, rate-limit detection | `internal/claude` | ✅ tested with a fake CLI; real `claude auth status` check verified |
+| ToS register gating, per-source cadence and back-off, per-source run lock | `internal/store`, `internal/collect` | ✅ tested |
+| Federal service-contract awards connector (USAspending) | `internal/connectors/usaspending` | ✅ tested; live run: 327 awards for one day, no duplicates on re-run |
+| O*NET + BLS OEWS + AI-usage import → ranked task-spend seeds | `internal/labour` | ✅ tested with fixtures |
+| `aoe` CLI, `worker`, `scheduler`; Dockerfile + compose | `cmd/`, root | ✅ smoke-tested locally; Docker build not run here |
+
+**Next (week 2):** extractor + span verifier, local embedding server, `aoe-mcp` tool server, generic app-marketplace connector, HN/GitHub search.
+
+### Quick start (Docker)
+
+```sh
+claude setup-token                          # once; copy the token
+cat > .env <<'ENV'
+CLAUDE_CODE_OAUTH_TOKEN=<token>
+POSTGRES_PASSWORD=<choose one>
+ENV
+docker compose up -d --build                # postgres, worker, scheduler
+docker compose run --rm worker aoe claude check --probe-websearch
+docker compose run --rm worker aoe sources
+```
+
+Do **not** put `ANTHROPIC_API_KEY` in the environment. It would override the subscription token and bill the API, so the worker refuses to start with it set.
+
+### Labour-market seeds (discovery lens 1)
+
+Download the data, then import it:
+
+- O*NET text database (`db_<release>_text.zip`) from the O*NET Resource Center. Licence: CC BY 4.0, attribution required.
+- BLS OEWS national industry-specific file (`nat3d_M<year>_dl.xlsx` or `nat4d`). Public domain.
+- Optional: a task-level AI-usage table such as the Anthropic Economic Index (CC BY 4.0). Column names vary by release.
+
+```sh
+aoe import onet --release 29.3 db_29_3_text.zip
+aoe import oews --year 2024 nat4d_M2024_dl.xlsx
+aoe import ai-usage --release 2026-01 --task-col task_name --value-col pct onet_task_mappings.csv
+aoe seeds --limit 50              # or --naics 6212 for one industry, --cross-industry for all
+```
+
+### Development
+
+```sh
+make db        # disposable pgvector container on :55432
+make test      # all tests, race detector on (DB tests skip without AOE_TEST_DATABASE_URL)
+make vet build
+```

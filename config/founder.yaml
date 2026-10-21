@@ -1,0 +1,27 @@
+# Founder profile (PRD §4). Used by triage gates and ranking from week 3.
+founder:
+  weekly_review_minutes: 60
+  weekly_validation_hours: 4
+  domains_with_access:           # credibility / network, 0–3
+    sre_platform_engineering: 3
+    llm_infrastructure: 3
+    workflow_orchestration: 2
+  excluded_domains: [regulated_legal_advice, medical, securities]
+  employment_constraints:
+    conflict_check_required: false   # F1 gate disabled by founder decision
+  solo_operability:
+    max_sales_cycle_days: 60
+    allow_24x7_sla: false
+    allow_pre_sale_security_audit: false
+  product_scope:
+    # Opportunities may be general-purpose tools, vertical products, services or
+    # plugins. Marketplaces are an evidence source, not a constraint on what to build.
+    allow_horizontal_tools: true
+commercial_targets:
+  milestones_mrr: [1, 1000, 5000]
+  preferred_price_band_usd_month: [150, 600]
+  horizon_months: 12
+attention:
+  cards_per_digest: 3
+  approvals_per_week: 5
+  concurrent_validations: 2

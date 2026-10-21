@@ -188,8 +188,9 @@ For every opportunity that clears the gates, the engine evaluates **at least thr
 
 1. **Service-first:** the founder delivers the outcome manually, using internal AI tooling. Revenue in weeks, highest learning, doesn't scale; it's a bridge.
 2. **Narrow software:** SaaS, plugin, or API for the critical workflow.
-3. **Distribution-first:** a marketplace/platform plugin whose discovery is driven by the platform.
-4. *(Optional)* **Acquire:** an existing small product in the space, if listings exist.
+3. **General-purpose tool:** a horizontal product for a job that recurs across many industries (e.g., the same reconciliation task in accounting firms, dental offices and agencies). It's a first-class path. It needs a distribution channel that works across segments (search intent, an integration ecosystem, open source), and gate M3 checks for one.
+4. **Distribution-first:** a marketplace/platform plugin whose discovery is driven by the platform.
+5. *(Optional)* **Acquire:** an existing small product in the space, if listings exist.
 
 Each path gets its own `time_to_first_dollar`, `p_build`, and channel. The recommendation names the path, not just the opportunity.
 

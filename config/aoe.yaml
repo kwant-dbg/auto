@@ -1,0 +1,58 @@
+# AOE runtime configuration. ${VAR} references are expanded from the environment.
+database_url: ${AOE_DATABASE_URL}
+blob_dir: data/blobs
+
+claude:
+  binary: claude
+  workdir: data/claude-workdir   # empty and dedicated: no repo hooks, CLAUDE.md or .mcp.json leak in
+  version_pin: "2.1.306"         # upgrade deliberately, then re-run the eval suite
+  grace: 15s                     # SIGINT → SIGKILL on timeout
+  mcp_config: ""                 # set when the aoe-mcp tool server exists (week 2)
+
+worker:
+  concurrency: 4
+  lease: 10m
+  poll_interval: 5s
+
+scheduler:
+  tick: 1m
+
+limits:
+  max_agent_turns_per_day: 2000  # Claude runs on the Enterprise subscription: caps are turns, not dollars
+
+models:                          # Claude Code --model aliases per tier
+  fast: haiku
+  mid: sonnet
+  top: opus
+
+http:
+  user_agent: "aoe-research/0.1 (personal market research)"
+  timeout: 60s
+
+# ToS register (SRC-2). A source can't be enabled without an entry for its type.
+tos:
+  - source_type: usaspending_awards
+    access_method: official_api
+    terms_url: https://api.usaspending.gov/
+    reviewed_at: "2026-10-21"
+    allowed_use: >-
+      Public US federal spending data published by the Treasury; the API needs no key.
+      Used to find recurring, budgeted service work and its buyers.
+    rate_limit_per_min: 60
+    notes: >-
+      Entry drafted from general knowledge, not a line-by-line terms review; confirm
+      before relying on it. No published rate limit found, so 60/min is a conservative default.
+
+sources:
+  - name: federal-service-contracts
+    type: usaspending_awards
+    enabled: true
+    cadence: 24h
+    config:
+      min_amount: 5000          # small recurring service contracts
+      max_amount: 250000
+      lookback_days: 30         # first run starts 30 days back
+      window_days: 1
+      max_windows_per_run: 14
+      # filters are passed verbatim to the API's "filters" object, e.g.
+      # filters: {naics_codes: ["5614"]}

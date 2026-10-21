@@ -1,0 +1,55 @@
+# Single-host deployment (NFR-10). Put CLAUDE_CODE_OAUTH_TOKEN (from
+# `claude setup-token`) and POSTGRES_PASSWORD in a .env file next to this one.
+# Never set ANTHROPIC_API_KEY here: the worker refuses to start with it.
+services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    environment:
+      POSTGRES_USER: aoe
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+      POSTGRES_DB: aoe
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U aoe -d aoe"]
+      interval: 5s
+      retries: 20
+    restart: unless-stopped
+
+  worker:
+    build: .
+    command: ["worker"]
+    environment: &aoe-env
+      AOE_DATABASE_URL: postgres://aoe:${POSTGRES_PASSWORD}@postgres:5432/aoe?sslmode=disable
+      CLAUDE_CODE_OAUTH_TOKEN: ${CLAUDE_CODE_OAUTH_TOKEN:?set CLAUDE_CODE_OAUTH_TOKEN in .env}
+    volumes:
+      - aoedata:/app/data
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+
+  scheduler:
+    build: .
+    command: ["scheduler"]
+    environment: *aoe-env
+    volumes:
+      - aoedata:/app/data
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # Read-only exploration UI (RPT-5). Connect it to the aoe database on first launch.
+  metabase:
+    image: metabase/metabase:v0.50.36
+    ports:
+      - "127.0.0.1:3000:3000"
+    depends_on:
+      - postgres
+    restart: unless-stopped
+    profiles: ["ui"]
+
+volumes:
+  pgdata:
+  aoedata:

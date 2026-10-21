@@ -69,7 +69,7 @@ Dashboard UI (use Metabase if needed), Temporal, prototype builder, any outreach
 | Week | Deliverable | Demo |
 |---|---|---|
 | 1 | Schema + migrations; snapshot store; 2 connectors (O*NET/BLS import, procurement API); Go `claude` runner with auth health check, plus a check that WebSearch works headless under the subscription; `llm_call` logging; capacity caps | SQL: tasks × industries × wage pool; 1k procurement awards stored |
-| 2 | Extractor + span verifier + normaliser + local embedding server; Atlassian Marketplace connector; `aoe-mcp` tool server (`fetch_and_snapshot`, `kb_search`); HN/GitHub search | Observations with verified spans; extraction precision on 50 hand-checked samples |
+| 2 | Extractor + span verifier + normaliser + local embedding server; generic app-marketplace connector (first instance: Atlassian Marketplace); `aoe-mcp` tool server (`fetch_and_snapshot`, `kb_search`); HN/GitHub search | Observations with verified spans; extraction precision on 50 hand-checked samples |
 | 3 | Clusterer + adjudicator (thresholds from Phase 0 labels); triage gates; opportunities + questions; scheduler with dedupe + budgets | Problem list with independence counts; dedupe P/R report |
 | 4 | Researcher agent (read-only tools, snapshot-before-cite); verifier (span + entailment); Assessor + Monte Carlo + weakest-link; Bull/Bear debate + Judge | One full dossier generated unattended |
 | 5 | Digest + CLI feedback + pairwise ranking; baseline B0 job; saturation stopping; source back-off; first real weekly cycle | Founder's first weekly review; metrics report |

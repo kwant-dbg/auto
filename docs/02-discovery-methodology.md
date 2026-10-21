@@ -62,6 +62,8 @@ This is the most systematic way to answer v1.0's central question, "what are peo
 
 ### 3.2 Platform marketplace gaps: "discover where you can distribute"
 
+> **Scope note (founder decision):** marketplaces are an *evidence source*, not a limit on what AOE recommends building. AOE collects from several marketplaces through one pluggable connector type, and an opportunity can be a general-purpose (horizontal) tool, a vertical product, a service or a plugin. Marketplace data is simply some of the best public evidence of paid demand.
+
 Vertical and horizontal SaaS platforms run app marketplaces. Examples include e-commerce platforms, accounting/bookkeeping platforms, CRMs, project-management and dev-tool suites, website builders, and the WordPress plugin directory. Each marketplace gives you:
 
 - **Demand with spend.** Paid-app pricing pages and install/review counts (reviews are a lower bound on paying users).

@@ -95,7 +95,7 @@ Priority: **P0** = Phase 1 must-have · **P1** = Phase 2 · **P2** = Phase 3+.
 | SRC-5 | Store `published_at` (if known), `fetched_at`, canonical URL, source type, author/org identifiers (hashed where possible) | P0 |
 | SRC-6 | Per-source cadence with automatic back-off after N runs yielding no new verified observations | P0 |
 | SRC-7 | Source health record: last success, last new observation, error rate | P0 |
-| SRC-8 | Phase 1 connectors: O*NET + BLS OEWS + AI-usage index (static import); public procurement awards API; one app marketplace with permitted access (default: **Atlassian Marketplace**, terms confirmed in the ToS register before enabling); HN + GitHub search (as research tools) | P0 |
+| SRC-8 | Phase 1 connectors: O*NET + BLS OEWS + AI-usage index (static import); public procurement awards API; app marketplaces through one pluggable connector type, each instance with its own ToS entry (first instance: **Atlassian Marketplace**; more added as config, not code); HN + GitHub search (as research tools) | P0 |
 | SRC-9 | Change monitors: tracked-URL diff (pricing pages, changelogs), regulatory feed, shutdown notices | P1 |
 | SRC-10 | ATS public job-board connector over a curated company list | P1 |
 | SRC-11 | Paid-template / productised-service sampling (manual-rate, terms-respecting) | P1 |
@@ -296,7 +296,7 @@ All resolved:
 | # | Decision | Resolution |
 |---|---|---|
 | 1 | Language | **Go** (`04` §7) |
-| 2 | Phase 1 app marketplace | **Atlassian Marketplace** by default: B2B, paid apps, and close to the founder's dev/ops background. Its terms are checked in the ToS register before the connector is enabled; WordPress.org's plugin directory is the fallback |
+| 2 | App marketplaces | Not a limit on scope: marketplaces are one evidence source among several, and opportunities may be general-purpose tools. One generic connector type; **Atlassian Marketplace** is the first instance, WordPress.org's plugin directory the second. Each instance's terms are checked in the ToS register before enabling |
 | 3 | Employment check | Not needed; gate F1 disabled |
 | 4 | Model access | Claude Enterprise subscription; founder confirms unattended 24/7 use is allowed. Calls go through headless Claude Code (`04` §7.1) |
 | 5 | Budgets | No $ caps on Claude; capacity limited by concurrency and daily turns |
