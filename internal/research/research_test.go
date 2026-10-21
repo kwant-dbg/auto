@@ -350,3 +350,47 @@ func TestLifecycleNext(t *testing.T) {
 		}
 	}
 }
+
+func TestFailedRunRefundsBudget(t *testing.T) {
+	e := setup(t, "qualified")
+	ctx := context.Background()
+	qid := e.question(t, "M4", "kill")
+	rt := &router{routes: map[string]func(string) string{research.TaskType: func(string) string { return `not json` }}}
+	client := &llm.Client{Runner: rt, Store: e.st}
+	r := &research.Researcher{Store: e.st, LLM: client, Verifier: &verify.Verifier{Store: e.st, LLM: client}, Model: "opus"}
+	if _, err := r.Run(ctx, nil, qid); err == nil {
+		t.Fatal("want an error for unparseable output")
+	}
+	var used int
+	e.st.DB.QueryRow(ctx, `SELECT budget_units_used FROM opportunity WHERE id = $1`, e.oppID).Scan(&used) //nolint:errcheck
+	if used != 0 {
+		t.Fatalf("budget used = %d after a failed run, want 0", used)
+	}
+}
+
+func TestNoResearchOnKilledOpportunities(t *testing.T) {
+	e := setup(t, "killed")
+	qid := e.question(t, "M4", "kill")
+	rt := &router{routes: map[string]func(string) string{}}
+	client := &llm.Client{Runner: rt, Store: e.st}
+	r := &research.Researcher{Store: e.st, LLM: client, Verifier: &verify.Verifier{Store: e.st, LLM: client}, Model: "opus"}
+	out, err := r.Run(context.Background(), nil, qid)
+	if err != nil || out.SkippedReason == "" || len(rt.calls) != 0 {
+		t.Fatalf("out=%+v err=%v calls=%d", out, err, len(rt.calls))
+	}
+}
+
+func TestCandidatesResearchQualifyingGatesFirst(t *testing.T) {
+	e := setup(t, "candidate")
+	ctx := context.Background()
+	e.question(t, "M4", "kill")
+	m1 := e.question(t, "M1", "standard")
+	if _, err := research.Schedule(ctx, e.st, research.Options{}); err != nil {
+		t.Fatal(err)
+	}
+	var qid int64
+	e.st.DB.QueryRow(ctx, `SELECT (inputs->>'question_id')::bigint FROM task WHERE type = 'research'`).Scan(&qid) //nolint:errcheck
+	if qid != m1 {
+		t.Fatalf("candidate researched question %d first, want the M1 question %d", qid, m1)
+	}
+}

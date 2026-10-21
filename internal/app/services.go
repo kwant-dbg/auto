@@ -40,7 +40,7 @@ func NewLLM(ctx context.Context, cfg *config.Config, st *store.Store, log *slog.
 		log.Warn("aoe-mcp not found; agent tasks will have no AOE tools", "err", err)
 	} else {
 		cfgPath, _ := filepath.Abs(ConfigPath())
-		env := map[string]string{"AOE_CONFIG": cfgPath, "AOE_DATABASE_URL": cfg.DatabaseURL}
+		env := map[string]string{"AOE_CONFIG": cfgPath, "AOE_DATABASE_URL": cfg.DatabaseURL, "AOE_BLOB_DIR": cfg.BlobDir}
 		if t := os.Getenv("GITHUB_TOKEN"); t != "" {
 			env["GITHUB_TOKEN"] = t
 		}

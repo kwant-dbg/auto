@@ -47,7 +47,7 @@ var KillReasons = map[string]bool{
 // Earned research budgets by stage (SCH-3).
 const (
 	BudgetCandidate = 1
-	BudgetQualified = 5
+	BudgetQualified = 8
 )
 
 // Inputs are the task inputs.

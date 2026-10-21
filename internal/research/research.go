@@ -203,14 +203,23 @@ func (r *Researcher) Run(ctx context.Context, taskID *int64, qid int64) (Outcome
 	}
 	// Spend one unit of the opportunity's earned budget, atomically.
 	tag, err := r.Store.DB.Exec(ctx, `UPDATE opportunity SET budget_units_used = budget_units_used + 1, last_research_at = now()
-		WHERE id = $1 AND budget_units_used < budget_units_total AND NOT saturated`, q.OppID)
+		WHERE id = $1 AND budget_units_used < budget_units_total AND NOT saturated
+		  AND state IN ('candidate', 'qualified', 'dossier')`, q.OppID)
 	if err != nil {
 		return out, err
 	}
 	if tag.RowsAffected() == 0 {
-		out.SkippedReason = ErrNoBudget.Error() + " or desk research saturated"
+		out.SkippedReason = ErrNoBudget.Error() + ", desk research saturated, or the opportunity is no longer being researched"
 		return out, nil
 	}
+	// Give the unit back if the run fails before its results are applied:
+	// nothing was learned.
+	applied := false
+	defer func() {
+		if !applied {
+			r.Store.DB.Exec(context.WithoutCancel(ctx), `UPDATE opportunity SET budget_units_used = greatest(budget_units_used - 1, 0) WHERE id = $1`, q.OppID) //nolint:errcheck
+		}
+	}()
 
 	p, err := prompts.Load("research", PromptVersion)
 	if err != nil {
@@ -227,8 +236,6 @@ func (r *Researcher) Run(ctx context.Context, taskID *int64, qid int64) (Outcome
 		MaxTurns: maxTurns, Timeout: 20 * time.Minute,
 	})
 	if err != nil {
-		// Give the unit back: nothing was learned.
-		r.Store.DB.Exec(context.WithoutCancel(ctx), `UPDATE opportunity SET budget_units_used = greatest(budget_units_used - 1, 0) WHERE id = $1`, q.OppID) //nolint:errcheck
 		return out, err
 	}
 	var m modelOutput
@@ -251,6 +258,7 @@ func (r *Researcher) Run(ctx context.Context, taskID *int64, qid int64) (Outcome
 	err = pgx.BeginFunc(ctx, r.Store.DB, func(tx pgx.Tx) error {
 		return r.apply(ctx, tx, taskID, q, m, verdicts, p.ID(), inputHash, &out)
 	})
+	applied = err == nil
 	return out, err
 }
 
@@ -374,6 +382,13 @@ func (r *Researcher) apply(ctx context.Context, tx pgx.Tx, taskID *int64, q *qct
 	return err
 }
 
+// QuestionPriority orders an opportunity's open questions (SQL, aliases o and
+// q). A candidate's single budget unit goes first to the gates that would
+// qualify it (M1, M2), since qualifying unlocks budget for the kill checks;
+// otherwise kill questions first, then P(kill) ÷ cost.
+const QuestionPriority = `CASE WHEN o.state = 'candidate' AND q.linked_code IN ('M1', 'M2') THEN 0
+	WHEN q.kind = 'kill' THEN 1 ELSE 2 END, coalesce(q.voe_estimate, 0) DESC`
+
 // Options bound research scheduling.
 type Options struct {
 	MaxPerDay     int `yaml:"max_per_day"`
@@ -419,7 +434,7 @@ func Schedule(ctx context.Context, st *store.Store, opt Options) (int, error) {
 		  AND o.budget_units_used < o.budget_units_total
 		  AND q.status = 'open'
 		  AND NOT EXISTS (SELECT 1 FROM task t WHERE t.type = $1 AND t.state IN ('queued', 'running') AND t.opportunity_id = o.id)
-		ORDER BY o.id, (q.kind = 'kill') DESC, coalesce(q.voe_estimate, 0) DESC, q.id`, TaskType)
+		ORDER BY o.id, `+QuestionPriority+`, q.id`, TaskType)
 	if err != nil {
 		return 0, err
 	}

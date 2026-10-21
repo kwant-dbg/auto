@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"path/filepath"
 	"time"
 
 	"gopkg.in/yaml.v3"
@@ -95,7 +96,17 @@ func Load(path string) (*Config, error) {
 	if v := os.Getenv("AOE_DATABASE_URL"); v != "" {
 		c.DatabaseURL = v
 	}
+	if v := os.Getenv("AOE_BLOB_DIR"); v != "" {
+		c.BlobDir = v
+	}
 	c.defaults()
+	// Relative paths are resolved once, here: child processes (Claude Code and
+	// the aoe-mcp server it starts) run in other directories.
+	for _, p := range []*string{&c.BlobDir, &c.Claude.WorkDir, &c.FounderProfile} {
+		if abs, err := filepath.Abs(*p); err == nil {
+			*p = abs
+		}
+	}
 	if err := c.validate(); err != nil {
 		return nil, fmt.Errorf("%s: %w", path, err)
 	}

@@ -13,6 +13,7 @@ import (
 	"github.com/kwant-dbg/auto/internal/app"
 	"github.com/kwant-dbg/auto/internal/config"
 	"github.com/kwant-dbg/auto/internal/founder"
+	"github.com/kwant-dbg/auto/internal/research"
 	"github.com/kwant-dbg/auto/internal/store"
 )
 
@@ -34,8 +35,7 @@ func researchCmd(ctx context.Context, cfg *config.Config, st *store.Store, args 
 		rows, err := st.DB.Query(ctx, `
 			SELECT q.id FROM question q JOIN opportunity o ON o.id = q.opportunity_id
 			WHERE q.status = 'open' AND ($1 = 0 OR o.id = $1) AND o.state IN ('dossier', 'qualified', 'candidate')
-			ORDER BY array_position(ARRAY['dossier','qualified','candidate'], o.state), (q.kind = 'kill') DESC,
-			         coalesce(q.voe_estimate, 0) DESC, q.id LIMIT $2`, *oid, *limit)
+			ORDER BY array_position(ARRAY['dossier','qualified','candidate'], o.state), `+research.QuestionPriority+`, q.id LIMIT $2`, *oid, *limit)
 		if err != nil {
 			return err
 		}

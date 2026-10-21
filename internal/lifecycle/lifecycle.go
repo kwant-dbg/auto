@@ -12,7 +12,7 @@ import (
 )
 
 // Earned research budgets by stage (SCH-3).
-var Budget = map[string]int{"candidate": 1, "qualified": 5, "dossier": 30}
+var Budget = map[string]int{"candidate": 1, "qualified": 8, "dossier": 30}
 
 // failOutcome maps a FAILed gate to the state and reason code it causes.
 // Founder gates kill; a missing buyer or spend parks (new evidence can revive

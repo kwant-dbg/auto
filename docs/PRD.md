@@ -156,7 +156,7 @@ Priority: **P0** = Phase 1 must-have · **P1** = Phase 2 · **P2** = Phase 3+.
 |---|---|---|
 | SCH-1 | Postgres-backed task queue with leases, priorities, retries (max 2), dead-letter | P0 |
 | SCH-2 | Task dedupe key `(type, opportunity_id, question_hash, evidence_version)` | P0 |
-| SCH-3 | Earned research budget per opportunity by stage (Candidate 1, Qualified 5, Dossier 20–50 units) | P0 |
+| SCH-3 | Earned research budget per opportunity by stage (Candidate 1, Qualified 8, Dossier 30 units; one unit per research question; refunded if a run fails). *Week 4:* Qualified raised from 5 to 8 because a qualified opportunity carries up to 7 kill questions. A candidate's unit goes first to the gates that would qualify it (M1, M2). New kill questions from a debate add budget and reopen research | P0 |
 | SCH-4 | Proposed follow-up questions: ≤ 3 per task, depth ≤ 2, admitted only if linked to factor/gate and within budget | P0 |
 | SCH-5 | Saturation: two consecutive tasks with no material change (no range narrowed > 20%, no gate flipped) → mark desk-research saturated; escalate | P0 |
 | SCH-6 | Nightly queue regeneration ordered by value-of-experiment ÷ cost | P0 |

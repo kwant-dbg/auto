@@ -2,7 +2,7 @@
 
 Pre-implementation strategy and architecture for a personal system that finds, evaluates, and validates commercially viable software opportunities for a solo technical founder.
 
-**Status:** design review complete and founder decisions recorded (Go; Claude Enterprise subscription via headless Claude Code; Claude-only Bull/Bear/Judge debate; marketplaces as one evidence source among several, with general-purpose tools in scope; week-8 stop rule accepted). Phase 1 build in progress: weeks 1–3 are done (see **Running it** below).
+**Status:** design review complete and founder decisions recorded (Go; Claude Enterprise subscription via headless Claude Code; Claude-only Bull/Bear/Judge debate; marketplaces as one evidence source among several, with general-purpose tools in scope; week-8 stop rule accepted). Phase 1 build in progress: weeks 1–4 are done (see **Running it** below).
 
 ## The core thesis
 
@@ -41,7 +41,7 @@ AOE succeeds if the founder spends their few weekly hours on **opportunities wit
 
 ## Running it
 
-### What's built (Phase 1, weeks 1–3)
+### What's built (Phase 1, weeks 1–4)
 
 | Piece | Where | Status |
 |---|---|---|
@@ -60,7 +60,11 @@ AOE succeeds if the founder spends their few weekly hours on **opportunities wit
 | Triage → opportunities: founder profile, code-enforced gate rules, lifecycle decision with reason codes, kill questions, re-triage when evidence doubles | `internal/triage`, `internal/founder` | ✅ tested; **live**: 40 problems triaged (daily cap) |
 | CLI, worker, scheduler; Dockerfile + compose (Postgres, worker, scheduler, Ollama, Metabase) | `cmd/`, root | ✅ smoke-tested locally; Docker build not run here |
 
-**Next (week 4):** the research agent (answers questions with the `aoe-mcp` tools), the finding verifier, the assessor (factor ranges, Monte Carlo, weakest link) and the Bull/Bear/Judge debate.
+| Research agent: answers questions with WebSearch + `aoe-mcp`, cites only snapshotted documents; findings verified (span check + entailment); gates change only on supported findings; budgets, saturation, lifecycle | `internal/research`, `internal/verify`, `internal/lifecycle` | ✅ tested; **live** (see below) |
+| Assessor: ranged factors with citations, wide priors for unsupported factors, seeded Monte Carlo (P10/P50/P90 MRR@12m), weakest link | `internal/assess` | ✅ tested |
+| Debate: Bull and Bear in parallel independent sessions, two cited rounds, unsupported arguments struck, fresh Judge | `internal/debate` | ✅ tested |
+
+**Next (week 5):** the weekly digest and opportunity cards, CLI feedback (ratings, pairwise picks, finding grades), the one-shot-prompt baseline for the blind comparison, and the first full weekly cycle.
 
 ### Useful commands
 
