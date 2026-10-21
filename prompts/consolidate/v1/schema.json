@@ -1,0 +1,19 @@
+{
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["anchors"],
+  "properties": {
+    "anchors": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["anchor_id", "same_ids"],
+        "properties": {
+          "anchor_id": {"type": "integer"},
+          "same_ids": {"type": "array", "items": {"type": "integer"}, "maxItems": 10}
+        }
+      }
+    }
+  }
+}

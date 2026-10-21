@@ -39,6 +39,7 @@ var (
 var KillReasons = map[string]bool{
 	"no_buyer": true, "no_spend": true, "unreachable": true, "incumbent_strong": true, "negative_margin": true,
 	"infeasible": true, "founder_gate": true, "invalidated_by_experiment": true, "founder_veto": true, "out_of_scope": true,
+	"duplicate": true, // merged into another opportunity's problem (week 3)
 }
 
 // Earned research budgets by stage (SCH-3).

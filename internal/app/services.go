@@ -79,7 +79,9 @@ func RegisterHandlers(ctx context.Context, w *worker.Worker, cfg *config.Config,
 	} else {
 		ex := &extract.Extractor{Store: st, LLM: client, Model: cfg.Models.Fast}
 		w.Handle(extract.TaskType, ex.Handle)
-		w.Handle(problems.TaskType, Clusterer(cfg, st, client).Handle)
+		cl := Clusterer(cfg, st, client)
+		w.Handle(problems.TaskType, cl.Handle)
+		w.Handle(problems.ConsolidateTaskType, cl.ConsolidateHandle)
 		tr, err := Triager(cfg, st, client)
 		if err != nil {
 			log.Error("triage disabled: founder profile", "err", err)

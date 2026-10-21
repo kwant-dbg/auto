@@ -195,3 +195,80 @@ func TestSchedule(t *testing.T) {
 		t.Fatal("a second sweeper was queued")
 	}
 }
+
+var anchorRe = regexp.MustCompile(`<anchor id="(\d+)">[\s\S]*?</anchor>`)
+var candRe = regexp.MustCompile(`problem_id (\d+) \(\d+ observations\): ([^\n]*)`)
+
+func TestConsolidateMergesDuplicates(t *testing.T) {
+	f := newFixture(t)
+	ctx := context.Background()
+	// Three fragments of "keep Jira in sync with another tool" plus an unrelated problem.
+	a1 := f.obs("Jira admins", "keep Jira issues in sync with Salesforce cases", "sync breaks", "author:1", 4, nil)
+	a2 := f.obs("Jira admins", "keep Jira issues in sync with Salesforce cases", "sync breaks", "author:2", 4, nil)
+	b := f.obs("Jira admins", "keep Jira issues in sync with Zendesk tickets", "sync breaks", "author:3", 4, nil)
+	c := f.obs("Jira admins", "keep Jira issues in sync with ServiceNow incidents", "sync breaks", "author:4", 3, nil)
+	d := f.obs("Jira admins", "keep Jira issue templates consistent", "templates drift", "author:5", 4, nil)
+
+	// Cluster without adjudication: exact duplicates attach, the rest start problems.
+	cl := &problems.Clusterer{Store: f.st, Cfg: problems.Config{TrigramHigh: 0.95, TrigramLow: 0.99}}
+	if _, err := cl.Run(ctx, nil); err != nil {
+		t.Fatal(err)
+	}
+	pa, pb, pc := f.problemOf(a1), f.problemOf(b), f.problemOf(c)
+	if pa != f.problemOf(a2) || pa == pb || pb == pc {
+		t.Fatalf("setup: %d %d %d %d", pa, f.problemOf(a2), pb, pc)
+	}
+	// Both pa and pb already have opportunities.
+	var oppA, oppB int64
+	f.st.DB.QueryRow(ctx, `INSERT INTO opportunity (problem_id, segment) VALUES ($1, 's') RETURNING id`, pa).Scan(&oppA) //nolint:errcheck
+	f.st.DB.QueryRow(ctx, `INSERT INTO opportunity (problem_id, segment) VALUES ($1, 's') RETURNING id`, pb).Scan(&oppB) //nolint:errcheck
+
+	if settled, _ := problems.Settled(ctx, f.st); settled {
+		t.Fatal("a multi-origin problem awaits consolidation: not settled")
+	}
+
+	fake := &fakeRunner{respond: func(prompt string) string {
+		var anchors []string
+		for _, m := range anchorRe.FindAllStringSubmatch(prompt, -1) {
+			var same []string
+			for _, c := range candRe.FindAllStringSubmatch(m[0], -1) {
+				if strings.Contains(c[2], "in sync with") {
+					same = append(same, c[1])
+				}
+			}
+			anchors = append(anchors, fmt.Sprintf(`{"anchor_id":%s,"same_ids":[%s]}`, m[1], strings.Join(same, ",")))
+		}
+		return `{"anchors":[` + strings.Join(anchors, ",") + `]}`
+	}}
+	cl = &problems.Clusterer{Store: f.st, LLM: &llm.Client{Runner: fake, Store: f.st}, Model: "sonnet", Cfg: problems.Config{TrigramLow: 0.2}}
+	st, err := cl.Consolidate(ctx, nil, 10)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if st.Merged != 2 {
+		t.Fatalf("merged %d, want 2 (Zendesk and ServiceNow fragments)", st.Merged)
+	}
+	if f.problemOf(b) != pa || f.problemOf(c) != pa || f.problemOf(d) == pa {
+		t.Fatalf("after merge: b→%d c→%d d→%d, survivor %d", f.problemOf(b), f.problemOf(c), f.problemOf(d), pa)
+	}
+	var origins, best int
+	f.st.DB.QueryRow(ctx, `SELECT independent_origin_count, best_tier FROM problem WHERE id = $1`, pa).Scan(&origins, &best) //nolint:errcheck
+	if origins != 4 || best != 3 {
+		t.Fatalf("survivor origins=%d best=%d", origins, best)
+	}
+	var status string
+	var into int64
+	f.st.DB.QueryRow(ctx, `SELECT status, merged_into FROM problem WHERE id = $1`, pb).Scan(&status, &into) //nolint:errcheck
+	if status != "merged" || into != pa {
+		t.Fatalf("absorbed problem: %s → %d", status, into)
+	}
+	var oppState, reason string
+	f.st.DB.QueryRow(ctx, `SELECT o.state, d.reason_code FROM opportunity o JOIN decision d ON d.subject_id = o.id AND d.subject_type = 'opportunity'
+		WHERE o.id = $1`, oppB).Scan(&oppState, &reason) //nolint:errcheck
+	if oppState != "killed" || reason != "duplicate" {
+		t.Fatalf("duplicate opportunity: %s/%s", oppState, reason)
+	}
+	if settled, _ := problems.Settled(ctx, f.st); !settled {
+		t.Fatal("after consolidation, clustering should be settled")
+	}
+}

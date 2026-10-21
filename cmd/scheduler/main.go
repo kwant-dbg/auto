@@ -80,9 +80,18 @@ func runTick(ctx context.Context, cfg *config.Config, st *store.Store, log *slog
 	if _, err := problems.Schedule(ctx, st, cfg.Clustering.UseVectors); err != nil {
 		log.Error("schedule clustering", "err", err)
 	}
-	if n, err := triage.Schedule(ctx, st, cfg.Triage); err != nil {
-		log.Error("schedule triage", "err", err)
-	} else if n > 0 {
-		log.Info("triage enqueued", "count", n)
+	if _, err := problems.ScheduleConsolidation(ctx, st); err != nil {
+		log.Error("schedule consolidation", "err", err)
+	}
+	// Triage waits until clustering and consolidation have caught up, so
+	// fragments of one problem don't become separate opportunities.
+	if settled, err := problems.Settled(ctx, st); err != nil {
+		log.Error("check clustering settled", "err", err)
+	} else if settled {
+		if n, err := triage.Schedule(ctx, st, cfg.Triage); err != nil {
+			log.Error("schedule triage", "err", err)
+		} else if n > 0 {
+			log.Info("triage enqueued", "count", n)
+		}
 	}
 }

@@ -49,6 +49,7 @@ Evidence
 
 Problems and opportunities
   cluster                                       group unassigned observations into problems now
+  consolidate                                   merge duplicate problems now
   problems [--min-origins N] [--limit N]        problems ranked by independent evidence
   problem <id>                                  one problem and its evidence
   triage [--problem ID] [--limit N]             triage eligible problems now (or one problem)
@@ -117,6 +118,8 @@ func run(ctx context.Context, args []string) error {
 		return hnCmd(ctx, cfg, st, rest)
 	case "cluster":
 		return clusterCmd(ctx, cfg, st)
+	case "consolidate":
+		return consolidateCmd(ctx, cfg, st)
 	case "problems":
 		return problemsCmd(ctx, st, rest)
 	case "problem":

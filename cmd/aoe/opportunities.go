@@ -52,6 +52,28 @@ func clusterCmd(ctx context.Context, cfg *config.Config, st *store.Store) error 
 	return nil
 }
 
+func consolidateCmd(ctx context.Context, cfg *config.Config, st *store.Store) error {
+	client := llmOrNil(ctx, cfg, st)
+	if client == nil {
+		return errors.New("consolidation needs Claude")
+	}
+	c := app.Clusterer(cfg, st, client)
+	total := 0
+	for {
+		s, err := c.Consolidate(ctx, nil, 40)
+		if err != nil {
+			return err
+		}
+		fmt.Printf("anchors=%d merged=%d\n", s.Anchors, s.Merged)
+		total += s.Merged
+		if s.Anchors == 0 {
+			break
+		}
+	}
+	fmt.Printf("done: %d problems merged\n", total)
+	return nil
+}
+
 func problemsCmd(ctx context.Context, st *store.Store, args []string) error {
 	fs := flag.NewFlagSet("problems", flag.ContinueOnError)
 	minOrigins := fs.Int("min-origins", 1, "minimum independent origins")
@@ -63,7 +85,7 @@ func problemsCmd(ctx context.Context, st *store.Store, args []string) error {
 		SELECT p.id, p.independent_origin_count, p.observation_count, coalesce(p.best_tier, 7), p.t1_origin_count,
 		       coalesce(o.state, '-'), p.canonical_statement
 		FROM problem p LEFT JOIN opportunity o ON o.problem_id = p.id
-		WHERE p.independent_origin_count >= $1
+		WHERE p.status = 'active' AND p.independent_origin_count >= $1
 		ORDER BY p.independent_origin_count DESC, p.t1_origin_count DESC, p.best_tier, p.id LIMIT $2`, *minOrigins, *limit)
 	if err != nil {
 		return err
