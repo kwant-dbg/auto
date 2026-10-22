@@ -60,6 +60,7 @@ var page = template.Must(template.New("page").Funcs(template.FuncMap{
 		}
 	},
 	"money":    Money,
+	"deref":    func(p *float64) float64 { return *p },
 	"prob":     func(p float64) string { return fmt.Sprintf("%.2f", p) },
 	"pathName": func(s string) string { return strings.ReplaceAll(oneLine(s), "_", "-") },
 	"gates":    gateViews,

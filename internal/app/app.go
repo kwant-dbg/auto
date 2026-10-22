@@ -14,6 +14,7 @@ import (
 	"github.com/kwant-dbg/auto/internal/store"
 
 	// Register connectors.
+	_ "github.com/kwant-dbg/auto/internal/connectors/community"
 	_ "github.com/kwant-dbg/auto/internal/connectors/marketplace"
 	_ "github.com/kwant-dbg/auto/internal/connectors/usaspending"
 )

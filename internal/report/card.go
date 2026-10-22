@@ -53,6 +53,9 @@ type MRR struct {
 	P90   float64 `json:"p90"`
 	PGe1k float64 `json:"p_ge_1k"`
 	PGe5k float64 `json:"p_ge_5k"`
+	// PGe500 is the digest's card bar. B0 doesn't estimate it, so blind
+	// cards never show it.
+	PGe500 *float64 `json:"p_ge_500,omitempty"`
 }
 
 // Card is an opportunity card.
@@ -106,6 +109,11 @@ func (c *Card) Display(blind bool) *Card {
 		cp.Evidence, cp.Findings, cp.Counter = blindEvidence(c.Evidence), blindEvidence(c.Findings), blindEvidence(c.Counter)
 		cp.MoreOrigins = nil
 		cp.OpportunityID, cp.State, cp.FirstSeen = 0, "", ""
+		if c.MRR != nil {
+			m := *c.MRR
+			m.PGe500 = nil
+			cp.MRR = &m
+		}
 	}
 	return &cp
 }
@@ -173,8 +181,12 @@ func (c *Card) Markdown(o RenderOptions) string {
 		fmt.Fprintf(&b, "**Paths:** %s\n", strings.Join(ps, " · "))
 	}
 	if c.MRR != nil {
-		fmt.Fprintf(&b, "**12-mo MRR:** P10 %s · P50 %s · P90 %s · P(≥$1k)=%.2f · P(≥$5k)=%.2f\n",
-			Money(c.MRR.P10), Money(c.MRR.P50), Money(c.MRR.P90), c.MRR.PGe1k, c.MRR.PGe5k)
+		p500 := ""
+		if c.MRR.PGe500 != nil {
+			p500 = fmt.Sprintf(" · P(≥$500)=%.2f", *c.MRR.PGe500)
+		}
+		fmt.Fprintf(&b, "**12-mo MRR:** P10 %s · P50 %s · P90 %s%s · P(≥$1k)=%.2f · P(≥$5k)=%.2f\n",
+			Money(c.MRR.P10), Money(c.MRR.P50), Money(c.MRR.P90), p500, c.MRR.PGe1k, c.MRR.PGe5k)
 	} else {
 		b.WriteString("**12-mo MRR:** not assessed yet\n")
 	}

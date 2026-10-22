@@ -219,8 +219,8 @@ func (c *Card) loadAssessment(ctx context.Context, db queryer, id int64) error {
 	var m MRR
 	var weakest string
 	var paths, exps []byte
-	if err := db.QueryRow(ctx, `SELECT ev_p10, ev_p50, ev_p90, p_ge_1k, p_ge_5k, coalesce(weakest_factor, ''), paths, next_experiments
-		FROM assessment WHERE id = $1`, id).Scan(&m.P10, &m.P50, &m.P90, &m.PGe1k, &m.PGe5k, &weakest, &paths, &exps); err != nil {
+	if err := db.QueryRow(ctx, `SELECT ev_p10, ev_p50, ev_p90, p_ge_1k, p_ge_5k, p_ge_500, coalesce(weakest_factor, ''), paths, next_experiments
+		FROM assessment WHERE id = $1`, id).Scan(&m.P10, &m.P50, &m.P90, &m.PGe1k, &m.PGe5k, &m.PGe500, &weakest, &paths, &exps); err != nil {
 		return err
 	}
 	c.MRR = &m

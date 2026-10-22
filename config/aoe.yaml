@@ -73,6 +73,7 @@ digest:
   spot_checks: 3
   changes: 5
   baseline_wait: 6h
+  min_p_ge_500: 0.2             # card bar: P(MRR >= $500 at 12 months); 0 shows every assessed opportunity
   out_dir: data/digests         # a markdown copy of each digest
 baseline:
   enabled: true
@@ -124,14 +125,14 @@ tos:
   - source_type: hn_search
     access_method: official_api
     terms_url: https://hn.algolia.com/api
-    reviewed_at: "2026-10-21"
-    allowed_use: Searching public Hacker News stories and comments to corroborate problems.
+    reviewed_at: "2026-10-22"
+    allowed_use: Searching public Hacker News stories and comments, on a schedule and on demand, to discover and corroborate problems. Author handles are stored only as hashes.
     rate_limit_per_min: 60
   - source_type: github_search
     access_method: official_api
     terms_url: https://docs.github.com/en/site-policy/github-terms/github-terms-of-service
-    reviewed_at: "2026-10-21"
-    allowed_use: Searching public issues to corroborate problems. Set GITHUB_TOKEN for higher limits.
+    reviewed_at: "2026-10-22"
+    allowed_use: Searching public issues through the REST API, weekly and on demand, to discover and corroborate problems; no scraping of github.com pages. Author logins are stored only as hashes. Set GITHUB_TOKEN for higher limits.
     rate_limit_per_min: 9   # unauthenticated search allows 10/min
 
 sources:
@@ -168,6 +169,66 @@ sources:
     cadence: 24h
     config: {platform: wordpress, browse: popular, min_installs: 10000,
              max_apps_per_run: 100, reviews_per_app: 30, max_review_stars: 3}
+
+  # Practitioner discussion in the founder's domains (SRE and platform
+  # engineering, LLM infrastructure, workflow orchestration; see
+  # config/founder.yaml). Edit the queries as the focus changes. HN items are
+  # fetched once each (a cursor per query); GitHub issues are re-read weekly
+  # because their upvote counts change.
+  - name: hn-infra
+    type: hn_search
+    enabled: true
+    cadence: 24h
+    config:
+      hits_per_query: 40
+      lookback_days: 14         # first run
+      min_text_chars: 160
+      queries:
+        # SRE and platform engineering
+        - kubernetes upgrade
+        - helm chart upgrade
+        - terraform drift
+        - on-call alert fatigue
+        - pagerduty pricing
+        - datadog bill
+        - observability costs
+        - incident postmortem
+        - runbook automation
+        - SLO alerting
+        - internal developer platform
+        # LLM infrastructure
+        - LLM gateway
+        - LLM observability
+        - vLLM production
+        - GPU cluster utilization
+        - inference costs
+        - LLM evals
+        # Workflow orchestration
+        - airflow migration
+        - temporal workflow
+        - dagster
+        - cron jobs reliability
+  - name: github-infra
+    type: github_search
+    enabled: true
+    cadence: 168h
+    config:
+      per_query: 30
+      sort: reactions-+1
+      min_body_chars: 200
+      queries:
+        - is:issue is:open label:enhancement reactions:>25 kubernetes
+        - is:issue is:open label:enhancement reactions:>25 helm
+        - is:issue is:open label:enhancement reactions:>25 terraform
+        - is:issue is:open reactions:>25 "feature request" prometheus
+        - is:issue is:open reactions:>25 "feature request" grafana
+        - is:issue is:open reactions:>25 "feature request" opentelemetry
+        - is:issue is:open reactions:>25 "feature request" argocd
+        - is:issue is:open reactions:>15 "feature request" vllm
+        - is:issue is:open reactions:>15 "feature request" litellm
+        - is:issue is:open reactions:>15 "feature request" ollama
+        - is:issue is:open reactions:>25 "feature request" airflow
+        - is:issue is:open reactions:>15 "feature request" temporal
 
   # On-demand sources used by agent tools (never collected on a schedule).
   - {name: web, type: web_fetch, enabled: false}

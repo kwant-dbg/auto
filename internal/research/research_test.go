@@ -279,6 +279,16 @@ func TestAssessAndDebate(t *testing.T) {
 	if out.Clamped < 8 || out.AssessmentID == 0 || !(out.P10 <= out.P50 && out.P50 <= out.P90) {
 		t.Fatalf("assessment = %+v", out)
 	}
+	// Backfilling P(≥$500) from the stored ranges reproduces the original run.
+	e.st.DB.Exec(ctx, `UPDATE assessment SET p_ge_500 = NULL`) //nolint:errcheck
+	if n, err := assess.BackfillPGe500(ctx, e.st); err != nil || n != 1 {
+		t.Fatalf("backfill: %d %v", n, err)
+	}
+	var p500 float64
+	e.st.DB.QueryRow(ctx, `SELECT p_ge_500 FROM assessment WHERE id = $1`, out.AssessmentID).Scan(&p500) //nolint:errcheck
+	if p500 != out.PGe500 || out.PGe500 < out.PGe1k {
+		t.Fatalf("backfilled P(≥$500) = %v, original %v (P(≥$1k) %v)", p500, out.PGe500, out.PGe1k)
+	}
 	var lo, hi float64
 	var clamped bool
 	e.st.DB.QueryRow(ctx, `SELECT low, high, clamped_to_prior FROM factor_estimate WHERE assessment_id = $1 AND factor_code = 'p_pay'`, out.AssessmentID).Scan(&lo, &hi, &clamped) //nolint:errcheck

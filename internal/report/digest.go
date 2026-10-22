@@ -29,6 +29,22 @@ type Options struct {
 	Hour    int    `yaml:"hour"`
 	// BaselineWait is how long the digest waits for the week's B0 run.
 	BaselineWait time.Duration `yaml:"baseline_wait"`
+	// MinPGe500 is the card bar: an opportunity is shown as a card only if
+	// its assessment gives P(MRR ≥ $500 at 12 months) at least this. Unset
+	// means DefaultMinPGe500; 0 shows every assessed opportunity.
+	MinPGe500 *float64 `yaml:"min_p_ge_500"`
+}
+
+// DefaultMinPGe500 is the default card bar: at least a one-in-five chance
+// of $500 MRR within 12 months.
+const DefaultMinPGe500 = 0.2
+
+// CardBar is the minimum P(MRR ≥ $500) for a card.
+func (o Options) CardBar() float64 {
+	if o.MinPGe500 == nil {
+		return DefaultMinPGe500
+	}
+	return *o.MinPGe500
 }
 
 // Defaults fills unset values.
@@ -373,13 +389,13 @@ func (g *gen) cards(ctx context.Context) error {
 		LEFT JOIN assessment a ON a.id = o.current_assessment_id
 		LEFT JOIN LATERAL (SELECT max(d.created_at) AS at FROM digest_item di JOIN digest d ON d.id = di.digest_id
 		                   WHERE di.kind = 'card' AND di.opportunity_id = o.id) shown ON true
-		WHERE o.state IN ('qualified', 'dossier', 'validating')
+		WHERE o.state IN ('qualified', 'dossier', 'validating') AND a.p_ge_500 >= $2
 		  AND (shown.at IS NULL
 		       OR EXISTS (SELECT 1 FROM assessment a2 WHERE a2.opportunity_id = o.id AND a2.created_at > shown.at)
 		       OR EXISTS (SELECT 1 FROM decision dc WHERE dc.subject_type = 'opportunity' AND dc.subject_id = o.id
 		                  AND dc.created_at > shown.at AND dc.from_state IS DISTINCT FROM dc.to_state AND dc.to_state IS NOT NULL)
 		       OR EXISTS (SELECT 1 FROM finding f WHERE f.opportunity_id = o.id AND f.created_at > shown.at AND f.verdict = 'supported'))
-		ORDER BY `+rankSQL+` LIMIT $1`, g.b.Opt.Cards)
+		ORDER BY `+rankSQL+` LIMIT $1`, g.b.Opt.Cards, g.b.Opt.CardBar())
 	if err != nil {
 		return err
 	}
@@ -414,9 +430,12 @@ func (g *gen) cards(ctx context.Context) error {
 func (g *gen) noCards(ctx context.Context) error {
 	var id int64
 	var state, stmt string
-	err := g.tx.QueryRow(ctx, `SELECT o.id, o.state, p.canonical_statement FROM opportunity o JOIN problem p ON p.id = o.problem_id
+	var p500 *float64
+	err := g.tx.QueryRow(ctx, `SELECT o.id, o.state, p.canonical_statement, a.p_ge_500 FROM opportunity o JOIN problem p ON p.id = o.problem_id
 		LEFT JOIN assessment a ON a.id = o.current_assessment_id
-		WHERE o.state IN ('candidate', 'qualified', 'dossier', 'validating') ORDER BY `+rankSQL+` LIMIT 1`).Scan(&id, &state, &stmt)
+		WHERE o.state IN ('candidate', 'qualified', 'dossier', 'validating')
+		ORDER BY array_position(ARRAY['validating','dossier','qualified','candidate'], o.state), a.p_ge_500 DESC NULLS LAST,
+		         p.t1_origin_count DESC, p.independent_origin_count DESC, o.id LIMIT 1`).Scan(&id, &state, &stmt, &p500)
 	if errors.Is(err, pgx.ErrNoRows) {
 		g.printf("No opportunity met the bar this week, and none is in progress.\n")
 		return nil
@@ -424,8 +443,12 @@ func (g *gen) noCards(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
+	blocked := g.blocker(ctx, id)
+	if state != "candidate" && p500 != nil {
+		blocked = fmt.Sprintf("its revenue odds: P(≥$500 MRR at 12 months) is %.2f, below the bar of %.2f", *p500, g.b.Opt.CardBar())
+	}
 	g.printf("No opportunity met the bar this week. Closest: **opportunity %d** (%s) — %s, blocked on %s.\n",
-		id, state, truncate(oneLine(stmt), 140), g.blocker(ctx, id))
+		id, state, truncate(oneLine(stmt), 140), blocked)
 	return nil
 }
 

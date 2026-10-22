@@ -59,18 +59,18 @@ func TestRankingDecidesDigestCards(t *testing.T) {
 		}
 		st.DB.QueryRow(ctx, `INSERT INTO opportunity (problem_id, segment, state) VALUES ($1, $2, 'qualified') RETURNING id`, pid, fmt.Sprint("segment ", i)).Scan(&oid) //nolint:errcheck
 		// Fallback order: opportunity 0 first (highest P(≥$1k)).
-		st.DB.QueryRow(ctx, `INSERT INTO assessment (opportunity_id, ev_p10, ev_p50, ev_p90, p_ge_1k, p_ge_5k, model, prompt_version, input_hash)
-			VALUES ($1, 0, 1, 2, $2, 0, 'm', 'p', 'h') RETURNING id`, oid, 0.9-0.1*float64(i)).Scan(&aid) //nolint:errcheck
+		st.DB.QueryRow(ctx, `INSERT INTO assessment (opportunity_id, ev_p10, ev_p50, ev_p90, p_ge_1k, p_ge_5k, p_ge_500, model, prompt_version, input_hash)
+			VALUES ($1, 0, 1, 2, $2, 0, 0.5, 'm', 'p', 'h') RETURNING id`, oid, 0.9-0.1*float64(i)).Scan(&aid) //nolint:errcheck
 		st.DB.Exec(ctx, `UPDATE opportunity SET current_assessment_id = $2 WHERE id = $1`, oid, aid) //nolint:errcheck
 		ids = append(ids, oid)
 	}
-	if ok, err := rank.Schedule(ctx, st, 3); err != nil || !ok {
+	if ok, err := rank.Schedule(ctx, st, 3, 0.2); err != nil || !ok {
 		t.Fatalf("4 eligible for 3 cards must schedule a ranking: %v %v", ok, err)
 	}
-	if ok, _ := rank.Schedule(ctx, st, 3); ok {
+	if ok, _ := rank.Schedule(ctx, st, 3, 0.2); ok {
 		t.Fatal("the same situation must not be ranked twice")
 	}
-	eligible, err := rank.Eligible(ctx, st)
+	eligible, err := rank.Eligible(ctx, st, 0.2)
 	if err != nil || len(eligible) != 4 || eligible[0] != ids[0] {
 		t.Fatalf("eligible = %v, %v", eligible, err)
 	}

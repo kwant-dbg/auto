@@ -3,6 +3,7 @@ package store
 import (
 	"context"
 	"errors"
+	"strings"
 	"time"
 
 	"github.com/jackc/pgx/v5"
@@ -88,4 +89,15 @@ func (s *Store) SaveDocument(ctx context.Context, sourceID int64, d Document) (S
 		return nil
 	})
 	return res, err
+}
+
+// AuthorHash is the stored, non-reversible form of a public author handle,
+// used for independence counting (PRB-4). Every writer uses this one form so
+// documents saved by research tools and by collectors agree.
+func AuthorHash(name string) string {
+	name = strings.ToLower(strings.TrimSpace(name))
+	if name == "" {
+		return ""
+	}
+	return Hash([]byte("author:" + name))[:16]
 }

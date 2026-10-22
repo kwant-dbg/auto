@@ -250,13 +250,14 @@ func BuildPrompt(profile string, cards []string, pairs []pair) string {
 
 func letter(i int) string { return string(rune('A' + i)) }
 
-// Eligible lists the opportunities a digest could show as cards, best
-// first by the digest's fallback order.
-func Eligible(ctx context.Context, st *store.Store) ([]int64, error) {
+// Eligible lists the opportunities a digest could show as cards (past the
+// card bar, P(MRR ≥ $500) ≥ minPGe500), best first by the digest's fallback
+// order.
+func Eligible(ctx context.Context, st *store.Store, minPGe500 float64) ([]int64, error) {
 	rows, err := st.DB.Query(ctx, `SELECT o.id FROM opportunity o JOIN problem p ON p.id = o.problem_id
-		LEFT JOIN assessment a ON a.id = o.current_assessment_id
-		WHERE o.state IN ('qualified', 'dossier', 'validating')
-		ORDER BY a.p_ge_1k DESC NULLS LAST, p.t1_origin_count DESC, p.independent_origin_count DESC, o.id LIMIT $1`, MaxCandidates)
+		JOIN assessment a ON a.id = o.current_assessment_id
+		WHERE o.state IN ('qualified', 'dossier', 'validating') AND a.p_ge_500 >= $2
+		ORDER BY a.p_ge_1k DESC NULLS LAST, p.t1_origin_count DESC, p.independent_origin_count DESC, o.id LIMIT $1`, MaxCandidates, minPGe500)
 	if err != nil {
 		return nil, err
 	}
@@ -266,8 +267,8 @@ func Eligible(ctx context.Context, st *store.Store) ([]int64, error) {
 // Schedule enqueues a ranking when more opportunities are eligible than the
 // digest has cards for. The dedupe key covers the set and each one's current
 // assessment, so a run happens once per distinct situation.
-func Schedule(ctx context.Context, st *store.Store, cards int) (bool, error) {
-	ids, err := Eligible(ctx, st)
+func Schedule(ctx context.Context, st *store.Store, cards int, minPGe500 float64) (bool, error) {
+	ids, err := Eligible(ctx, st, minPGe500)
 	if err != nil || len(ids) <= cards {
 		return false, err
 	}

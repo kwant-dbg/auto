@@ -123,7 +123,10 @@ func runTick(ctx context.Context, cfg *config.Config, st *store.Store, log *slog
 			log.Error("schedule baseline", "err", err)
 		}
 	}
-	if _, err := rank.Schedule(ctx, st, cfg.Digest.Cards); err != nil {
+	if _, err := assess.BackfillPGe500(ctx, st); err != nil {
+		log.Error("backfill P(MRR >= $500)", "err", err)
+	}
+	if _, err := rank.Schedule(ctx, st, cfg.Digest.Cards, cfg.Digest.CardBar()); err != nil {
 		log.Error("schedule ranking", "err", err)
 	}
 	if ok, err := report.ScheduleDigest(ctx, st, cfg.Digest, time.Now()); err != nil {

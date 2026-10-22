@@ -540,10 +540,4 @@ func truncateText(s string, n int) string {
 	return s[:cut] + "…"
 }
 
-func authorHash(name string) string {
-	name = strings.ToLower(strings.TrimSpace(name))
-	if name == "" {
-		return ""
-	}
-	return store.Hash([]byte("author:" + name))[:16]
-}
+func authorHash(name string) string { return store.AuthorHash(name) }

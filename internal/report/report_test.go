@@ -87,8 +87,8 @@ func seed(t *testing.T, st *store.Store, state string) *seeded {
 func (s *seeded) assess(t *testing.T, p1k float64) {
 	t.Helper()
 	var aid int64
-	must(t, s.st.DB.QueryRow(context.Background(), `INSERT INTO assessment (opportunity_id, ev_p10, ev_p50, ev_p90, p_ge_1k, p_ge_5k, weakest_factor, paths,
-		next_experiments, model, prompt_version, input_hash) VALUES ($1, 0, 1400, 6000, $2, 0.14, 'p_pay',
+	must(t, s.st.DB.QueryRow(context.Background(), `INSERT INTO assessment (opportunity_id, ev_p10, ev_p50, ev_p90, p_ge_1k, p_ge_5k, p_ge_500, weakest_factor, paths,
+		next_experiments, model, prompt_version, input_hash) VALUES ($1, 0, 1400, 6000, $2::float8, 0.14, $2::float8 + 0.1, 'p_pay',
 		'[{"path":"service_first","channel":"outreach","weeks_to_first_dollar":3,"p_build":0.9}]',
 		'[{"hypothesis":"admins pay","method":"8 problem interviews (O12, O13).","founder_hours":4,"kill_threshold":"fewer than 2 report spend"}]',
 		'm', 'p', 'h') RETURNING id`, s.opp, p1k).Scan(&aid))
@@ -388,5 +388,24 @@ func TestDueAt(t *testing.T) {
 	}
 	if report.Money(297) != "$297" || report.Money(1400) != "$1.4k" || report.Money(12000) != "$12k" {
 		t.Fatal("money formatting")
+	}
+}
+
+func TestCardBarIsPGe500(t *testing.T) {
+	st := testdb.New(t)
+	ctx := context.Background()
+	s := seed(t, st, "qualified")
+	_, err := st.DB.Exec(ctx, `UPDATE assessment SET p_ge_500 = 0.1 WHERE opportunity_id = $1`, s.opp)
+	must(t, err)
+	d, err := (&report.Builder{Store: st}).Build(ctx, time.Now(), "human", false)
+	must(t, err)
+	if d.Stats.Cards != 0 || !strings.Contains(d.Markdown, "P(≥$500 MRR at 12 months) is 0.10, below the bar of 0.20") {
+		t.Fatalf("an opportunity under the bar became a card:\n%s", d.Markdown)
+	}
+	low := 0.05
+	d, err = (&report.Builder{Store: st, Opt: report.Options{MinPGe500: &low}}).Build(ctx, time.Now(), "human", false)
+	must(t, err)
+	if d.Stats.Cards != 1 || !strings.Contains(d.Markdown, "P(≥$500)=0.10") {
+		t.Fatalf("a lower bar must admit it:\n%s", d.Markdown)
 	}
 }

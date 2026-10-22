@@ -102,10 +102,10 @@ func MRR(p Point) float64 {
 
 // Result is the simulation output.
 type Result struct {
-	P10, P50, P90 float64
-	PGe1k, PGe5k  float64
-	Weakest       string
-	Swing         map[string]float64 // expected-MRR swing from low to high, per factor
+	P10, P50, P90        float64
+	PGe500, PGe1k, PGe5k float64
+	Weakest              string
+	Swing                map[string]float64 // expected-MRR swing from low to high, per factor
 }
 
 // triangular samples a triangular distribution.
@@ -126,7 +126,7 @@ func triangular(rng *rand.Rand, r Range) float64 {
 func Simulate(factors map[string]Range, n int, seed uint64) Result {
 	rng := rand.New(rand.NewPCG(seed, seed^0x9e3779b97f4a7c15))
 	draws := make([]float64, n)
-	ge1, ge5 := 0, 0
+	ge500, ge1, ge5 := 0, 0, 0
 	for i := range draws {
 		p := Point{}
 		for _, code := range RevenueFactors {
@@ -137,6 +137,9 @@ func Simulate(factors map[string]Range, n int, seed uint64) Result {
 			v = MRR(p)
 		}
 		draws[i] = v
+		if v >= 500 {
+			ge500++
+		}
 		if v >= 1000 {
 			ge1++
 		}
@@ -146,7 +149,7 @@ func Simulate(factors map[string]Range, n int, seed uint64) Result {
 	}
 	sort.Float64s(draws)
 	q := func(f float64) float64 { return draws[int(f*float64(n-1))] }
-	res := Result{P10: q(0.1), P50: q(0.5), P90: q(0.9), PGe1k: float64(ge1) / float64(n), PGe5k: float64(ge5) / float64(n),
+	res := Result{P10: q(0.1), P50: q(0.5), P90: q(0.9), PGe500: float64(ge500) / float64(n), PGe1k: float64(ge1) / float64(n), PGe5k: float64(ge5) / float64(n),
 		Swing: map[string]float64{}}
 
 	// Weakest link: one-at-a-time sensitivity of expected MRR (p_build as a

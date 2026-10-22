@@ -320,6 +320,7 @@ details.decide[open] > div { display: grid; gap: 10px; margin-top: 10px; }
         <span class="tick hi" style="left: 100%">{{money .Scale}}</span>
       </div>
       <div class="odds">
+        {{if $c.MRR.PGe500}}<div><b>{{prob (deref $c.MRR.PGe500)}}</b><span>P(≥ $500)</span></div>{{end}}
         <div><b>{{prob $c.MRR.PGe1k}}</b><span>P(≥ $1k)</span></div>
         <div><b>{{prob $c.MRR.PGe5k}}</b><span>P(≥ $5k)</span></div>
       </div>

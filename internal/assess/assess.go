@@ -148,6 +148,7 @@ type Outcome struct {
 	P10          float64 `json:"p10"`
 	P50          float64 `json:"p50"`
 	P90          float64 `json:"p90"`
+	PGe500       float64 `json:"p_ge_500"`
 	PGe1k        float64 `json:"p_ge_1k"`
 	PGe5k        float64 `json:"p_ge_5k"`
 	Weakest      string  `json:"weakest"`
@@ -232,18 +233,18 @@ func (a *Assessor) Run(ctx context.Context, taskID *int64, oppID int64) (Outcome
 		}
 	}
 	sim := Simulate(factors, Draws, uint64(oppID))
-	out.P10, out.P50, out.P90, out.PGe1k, out.PGe5k, out.Weakest = sim.P10, sim.P50, sim.P90, sim.PGe1k, sim.PGe5k, sim.Weakest
+	out.P10, out.P50, out.P90, out.PGe500, out.PGe1k, out.PGe5k, out.Weakest = sim.P10, sim.P50, sim.P90, sim.PGe500, sim.PGe1k, sim.PGe5k, sim.Weakest
 
 	inputs, _ := json.Marshal(m.Factors)
 	inputHash := store.Hash([]byte(p.ID() + "\x00" + prompt))[:32]
 	err = pgx.BeginFunc(ctx, a.Store.DB, func(tx pgx.Tx) error {
 		if err := tx.QueryRow(ctx, `
 			INSERT INTO assessment (opportunity_id, ev_p10, ev_p50, ev_p90, p_ge_1k, p_ge_5k, weakest_factor, paths, first10_plan,
-				next_experiments, inputs, p_build, debate_summary, model, prompt_version, input_hash)
+				next_experiments, inputs, p_build, debate_summary, model, prompt_version, input_hash, p_ge_500)
 			VALUES ($1, $2, $3, $4, $5, $6, $7, coalesce($8, '[]'::jsonb), coalesce($9, '{}'::jsonb), coalesce($10, '[]'::jsonb), $11, $12, '',
-				$13, $14, $15) RETURNING id`,
+				$13, $14, $15, $16) RETURNING id`,
 			oppID, sim.P10, sim.P50, sim.P90, sim.PGe1k, sim.PGe5k, sim.Weakest, nullJSON(m.Paths), nullJSON(m.First10),
-			nullJSON(m.NextExperiments), inputs, factors[PBuild].Base, a.Model, p.ID(), inputHash).Scan(&out.AssessmentID); err != nil {
+			nullJSON(m.NextExperiments), inputs, factors[PBuild].Base, a.Model, p.ID(), inputHash, sim.PGe500).Scan(&out.AssessmentID); err != nil {
 			return err
 		}
 		for code, e := range est {
@@ -310,4 +311,47 @@ func Schedule(ctx context.Context, st *store.Store, maxPerRun int) (int, error) 
 		}
 	}
 	return n, nil
+}
+
+// BackfillPGe500 fills P(MRR ≥ $500) on assessments made before it was
+// computed, by re-running each one's seeded simulation over its stored
+// factor ranges: the same seed and ranges give the same draws, so the other
+// figures it reports are unchanged.
+func BackfillPGe500(ctx context.Context, st *store.Store) (int, error) {
+	rows, err := st.DB.Query(ctx, `SELECT a.id, a.opportunity_id, f.factor_code, f.low, f.base, f.high
+		FROM assessment a JOIN factor_estimate f ON f.assessment_id = a.id WHERE a.p_ge_500 IS NULL ORDER BY a.id`)
+	if err != nil {
+		return 0, err
+	}
+	type pending struct {
+		opp     int64
+		factors map[string]Range
+	}
+	todo := map[int64]*pending{}
+	var order []int64
+	for rows.Next() {
+		var id, opp int64
+		var code string
+		var r Range
+		if err := rows.Scan(&id, &opp, &code, &r.Low, &r.Base, &r.High); err != nil {
+			rows.Close()
+			return 0, err
+		}
+		if todo[id] == nil {
+			todo[id] = &pending{opp: opp, factors: map[string]Range{}}
+			order = append(order, id)
+		}
+		todo[id].factors[code] = r
+	}
+	rows.Close()
+	if err := rows.Err(); err != nil {
+		return 0, err
+	}
+	for _, id := range order {
+		sim := Simulate(todo[id].factors, Draws, uint64(todo[id].opp))
+		if _, err := st.DB.Exec(ctx, `UPDATE assessment SET p_ge_500 = $2 WHERE id = $1`, id, sim.PGe500); err != nil {
+			return 0, err
+		}
+	}
+	return len(order), nil
 }
