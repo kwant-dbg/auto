@@ -21,9 +21,23 @@ type Store struct {
 	Blobs *BlobStore
 }
 
+// DefaultMaxConns sizes the pool when the URL doesn't set pool_max_conns.
+// pgx's own default (4, or the CPU count) is too small: collection,
+// clustering and consolidation each hold a connection for an advisory lock
+// while doing their work on others, so a handful of concurrent tasks would
+// otherwise exhaust the pool and deadlock.
+const DefaultMaxConns = 32
+
 // Open connects to Postgres and verifies the connection.
 func Open(ctx context.Context, databaseURL, blobRoot string) (*Store, error) {
-	pool, err := pgxpool.New(ctx, databaseURL)
+	cfg, err := pgxpool.ParseConfig(databaseURL)
+	if err != nil {
+		return nil, fmt.Errorf("database url: %w", err)
+	}
+	if !strings.Contains(databaseURL, "pool_max_conns") {
+		cfg.MaxConns = DefaultMaxConns
+	}
+	pool, err := pgxpool.NewWithConfig(ctx, cfg)
 	if err != nil {
 		return nil, fmt.Errorf("connect: %w", err)
 	}
