@@ -86,6 +86,8 @@ It wasn't unattended: deploying those fixes took restarts and a digest rebuild, 
 
 **First review.** The founder rated all three cards not useful, with novelty 1, in 10 minutes. In response, HN and GitHub now feed discovery in the founder's domains, and a card needs P(MRR ≥ $500 at 12 months) ≥ 0.2. That bar alone drops both federal cards (0.04 and 0.00) but keeps the Jira card (0.34).
 
+**Same day, with HN in play** (caps lifted for the run, then restored). A 90-day HN backfill gave 2,183 documents and 1,242 problems, of which 50 reached two independent origins. The full backlog was triaged and given first research: 297 triages, 260 research tasks, about 6,700 turns. HN-backed opportunities so far: 40 candidates, 5 killed (4 `incumbent_strong`, e.g. on-call alerting and AI coding tool governance) and 5 parked (`no_buyer`, mostly hobbyist self-hosters); none has qualified yet. The extra digest (W43-2) shows three marketplace cards that clear the $500 bar: Confluence backup and point-in-time restore (P50 $1.5k), Jira estimation, and Jira automation. The run also found and fixed three bugs: subscription session limits weren't treated as rate limits, parking from research lacked a wake condition, and re-triage deleted questions queued tasks still referenced.
+
 **Next (week 6):** the second weekly cycle with the new sources, the blind pair picks and finding grades from W43, and a triage rule for procurement-only problems that have spend but no software-shaped obstacle.
 
 ### Useful commands
