@@ -51,6 +51,7 @@ AOE succeeds if the founder spends their few weekly hours on **opportunities wit
 | Headless Claude runner + gateway: schema output, tool allowlists, subscription-auth guard, daily turn cap, rate-limit deferral, call ledger | `internal/claude`, `internal/llm` | ✅ tested; **live**: auth check, WebSearch probe and MCP tools probe all pass |
 | Federal service-contract awards (USAspending) | `internal/connectors/usaspending` | ✅ tested; **live**: 327 awards for one day |
 | App marketplaces: one connector, Atlassian + WordPress adapters; listings and low-star reviews as text, installs/ratings/prices as daily metrics | `internal/connectors/marketplace` | ✅ tested; **live** against both APIs |
+| Practitioner discussion in the founder's domains: Hacker News stories and comments (daily, exact-match tool-name queries) and the most-upvoted open GitHub feature requests in infra projects (weekly) | `internal/connectors/community` | ✅ tested; **live**: HN 391 documents on the first run; GitHub search is blocked in this cloud session and runs where the worker has normal GitHub access |
 | O*NET + BLS OEWS + AI-usage import → ranked task-spend seeds | `internal/labour` | ✅ tested with fixtures |
 | Extraction: verbatim quotes located by code, tier by rule, origin keys, rejected quotes logged; batch scheduler with backpressure | `internal/extract`, `internal/evidence`, `internal/jobs` | ✅ tested; **live**: 29 documents → 27 observations, 0 rejected quotes |
 | Embeddings (Ollama or TEI) + sweeper | `internal/embed` | ✅ tested against fake servers; Ollama itself not run here |
@@ -83,7 +84,9 @@ It wasn't unattended: deploying those fixes took restarts and a digest rebuild, 
 
 **What the first digest says about AOE vs B0.** B0's cards sit squarely in the founder's SRE/infra domain: Airflow 2 end-of-life migrations (P50 MRR $1.2k) and EKS upgrade-as-a-service (P50 $1.5k). AOE's best card is Jira portfolio and capacity planning (P50 $296, P(≥$1k) 0.13). Its two federal cards, staff training ($74) and expert witnesses ($21), are commodity purchasing categories that passed M1/M2 on spend alone. Expect B0 to win this week's pairs. The likely cause is source selection rather than the pipeline. AOE's enabled sources (Jira, Confluence and WordPress marketplaces, federal contracts) don't overlap the founder's domains, while B0 aims its web search with the profile.
 
-**Next (week 6):** the founder's first review (`aoe digest --show latest`, then `rate`/`pick`/`grade`, and `review-time`). Then sources aimed at the founder's domains (GitHub issues and HN for infrastructure tools, which are already built but disabled). A minimum P(≥$1k) for a card, so near-zero opportunities don't take the founder's hour. And a triage rule for procurement-only problems that have spend but no software-shaped obstacle.
+**First review.** The founder rated all three cards not useful, with novelty 1, in 10 minutes. In response, HN and GitHub now feed discovery in the founder's domains, and a card needs P(MRR ≥ $500 at 12 months) ≥ 0.2. That bar alone drops both federal cards (0.04 and 0.00) but keeps the Jira card (0.34).
+
+**Next (week 6):** the second weekly cycle with the new sources, the blind pair picks and finding grades from W43, and a triage rule for procurement-only problems that have spend but no software-shaped obstacle.
 
 ### Useful commands
 
