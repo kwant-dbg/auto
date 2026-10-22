@@ -95,6 +95,13 @@ type RenderOptions struct {
 func (c *Card) Markdown(o RenderOptions) string {
 	cp := *c
 	cp.Weakest, cp.Debate, cp.NextExperiment, cp.Problem = scrub(c.Weakest), scrub(c.Debate), scrub(c.NextExperiment), scrub(c.Problem)
+	if o.Blind {
+		// The two systems cite and date sources differently, and only AOE
+		// counts uncited origins; normalise all three so neither side is
+		// recognisable by its format.
+		cp.Evidence, cp.Findings, cp.Counter = blindEvidence(c.Evidence), blindEvidence(c.Findings), blindEvidence(c.Counter)
+		cp.MoreOrigins = nil
+	}
 	c = &cp
 	var b strings.Builder
 	head := fmt.Sprintf("%s — %s", oneLine(c.Segment), oneLine(c.Job))
@@ -169,7 +176,11 @@ func (c *Card) Markdown(o RenderOptions) string {
 	}
 	next := oneLine(c.NextExperiment)
 	if next == "" {
-		next = "none proposed"
+		b.WriteString("**Next experiment:** none proposed yet\n")
+		if !o.Blind {
+			fmt.Fprintf(&b, "  `aoe decide %d advance|park|kill --reason <code>` · `aoe rate %d useful|not|duplicate`\n", c.OpportunityID, c.OpportunityID)
+		}
+		return b.String()
 	}
 	fmt.Fprintf(&b, "**Next experiment:** %s\n", next)
 	cost := fmt.Sprintf("~%.0f h", c.FounderHours)
@@ -183,6 +194,18 @@ func (c *Card) Markdown(o RenderOptions) string {
 			cost, c.OpportunityID, c.OpportunityID)
 	}
 	return b.String()
+}
+
+func blindEvidence(es []Evidence) []Evidence {
+	out := make([]Evidence, len(es))
+	for i, e := range es {
+		if h := host(e.URL); h != "" {
+			e.Source = h
+		}
+		e.Date = ""
+		out[i] = e
+	}
+	return out
 }
 
 // GateLine renders gate verdicts compactly: skipped gates (e.g. a disabled

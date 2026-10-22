@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"net/url"
+	"regexp"
 	"sort"
 	"strings"
 	"time"
@@ -68,6 +69,7 @@ func LoadCard(ctx context.Context, chk *Checker, oppID int64) (*Card, error) {
 		return nil, fmt.Errorf("opportunity %d: %w", oppID, err)
 	}
 	c.FirstSeen = ISOWeek(created)
+	c.Job = JobOf(c.Problem)
 
 	if err := c.loadEvidence(ctx, chk, problemID); err != nil {
 		return nil, err
@@ -139,7 +141,7 @@ func (c *Card) loadEvidence(ctx context.Context, chk *Checker, problemID int64) 
 	more := map[int]int{}
 	for _, o := range all {
 		if c.Job == "" {
-			c.Job = o.job // the job as stated by the strongest evidence
+			c.Job = o.job // fallback: the job as stated by the strongest evidence
 		}
 		if len(c.Evidence) < maxQuotedOrigins && chk.Check(ctx, o.span.DocumentID, o.span.Start, o.span.End, o.e.Quote) {
 			span := o.span
@@ -295,6 +297,19 @@ func (c *Card) loadDebate(ctx context.Context, db queryer) error {
 
 type queryer interface {
 	QueryRow(ctx context.Context, sql string, args ...any) pgx.Row
+}
+
+var jobRe = regexp.MustCompile(`(?i)\bneeds? to (.+?)(?:,? but |, causing |\.$|$)`)
+
+// JobOf takes the job from a normalised problem statement ("<actor> need to
+// <job> but <obstacle>, causing <consequence>"), so a card's header names
+// the whole problem rather than one observation's specifics.
+func JobOf(statement string) string {
+	m := jobRe.FindStringSubmatch(oneLine(statement))
+	if m == nil {
+		return ""
+	}
+	return strings.TrimSpace(m[1])
 }
 
 // ISOWeek formats t as an ISO week, e.g. 2026-W43.

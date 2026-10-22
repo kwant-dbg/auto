@@ -398,3 +398,18 @@ func TestCandidatesResearchQualifyingGatesFirst(t *testing.T) {
 		t.Fatalf("candidate researched question %d first, want the M1 question %d", qid, m1)
 	}
 }
+
+func TestQualifiedOpportunitiesAreAssessedOnce(t *testing.T) {
+	e := setup(t, "qualified")
+	ctx := context.Background()
+	if n, err := assess.Schedule(ctx, e.st, 5); err != nil || n != 1 {
+		t.Fatalf("a qualified opportunity without an assessment must be assessed: %d %v", n, err)
+	}
+	e.st.DB.Exec(ctx, `UPDATE task SET state = 'done'`) //nolint:errcheck
+	var aid int64
+	e.st.DB.QueryRow(ctx, `INSERT INTO assessment (opportunity_id, model, prompt_version, input_hash) VALUES ($1, 'm', 'p', 'h') RETURNING id`, e.oppID).Scan(&aid) //nolint:errcheck
+	e.st.DB.Exec(ctx, `UPDATE opportunity SET current_assessment_id = $2 WHERE id = $1`, e.oppID, aid)                                                              //nolint:errcheck
+	if n, _ := assess.Schedule(ctx, e.st, 5); n != 0 {
+		t.Fatal("an assessed qualified opportunity waits for dossier before re-assessment")
+	}
+}

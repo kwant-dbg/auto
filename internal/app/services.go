@@ -179,8 +179,16 @@ func DigestHandler(cfg *config.Config, st *store.Store) worker.Handler {
 		if err != nil {
 			return nil, err
 		}
-		if pending && now.Before(in.Due.Add(b.Opt.BaselineWait)) {
-			return nil, &worker.DeferError{Until: now.Add(15 * time.Minute), Reason: "waiting for this week's B0 baseline run"}
+		var assessing bool
+		if err := st.DB.QueryRow(ctx, `SELECT EXISTS (SELECT 1 FROM task WHERE type = $1 AND state IN ('queued', 'running'))`, assess.TaskType).Scan(&assessing); err != nil {
+			return nil, err
+		}
+		if (pending || assessing) && now.Before(in.Due.Add(b.Opt.BaselineWait)) {
+			reason := "waiting for this week's B0 baseline run"
+			if !pending {
+				reason = "waiting for assessments in flight, so cards carry them"
+			}
+			return nil, &worker.DeferError{Until: now.Add(5 * time.Minute), Reason: reason}
 		}
 		return b.Build(ctx, now, "system", true)
 	}

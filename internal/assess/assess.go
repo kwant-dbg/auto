@@ -274,7 +274,9 @@ func nullJSON(b json.RawMessage) any {
 
 // Schedule enqueues assessments for dossier opportunities that have none, or
 // whose newest supported finding is newer than their assessment (at most one
-// re-assessment a day each).
+// re-assessment a day each), and a first assessment for each qualified
+// opportunity, so a digest card always carries ranges, paths and a next
+// experiment.
 func Schedule(ctx context.Context, st *store.Store, maxPerRun int) (int, error) {
 	if maxPerRun <= 0 {
 		maxPerRun = 5
@@ -282,9 +284,10 @@ func Schedule(ctx context.Context, st *store.Store, maxPerRun int) (int, error) 
 	rows, err := st.DB.Query(ctx, `
 		SELECT o.id FROM opportunity o
 		LEFT JOIN assessment a ON a.id = o.current_assessment_id
-		WHERE o.state = 'dossier'
-		  AND (a.id IS NULL OR (a.created_at < now() - interval '1 day'
-		       AND EXISTS (SELECT 1 FROM finding f WHERE f.opportunity_id = o.id AND f.verdict = 'supported' AND f.created_at > a.created_at)))
+		WHERE ((o.state = 'dossier'
+		        AND (a.id IS NULL OR (a.created_at < now() - interval '1 day'
+		             AND EXISTS (SELECT 1 FROM finding f WHERE f.opportunity_id = o.id AND f.verdict = 'supported' AND f.created_at > a.created_at))))
+		       OR (o.state = 'qualified' AND a.id IS NULL))
 		  AND NOT EXISTS (SELECT 1 FROM task t WHERE t.type = $1 AND t.state IN ('queued', 'running') AND t.opportunity_id = o.id)
 		ORDER BY o.id LIMIT $2`, TaskType, maxPerRun)
 	if err != nil {

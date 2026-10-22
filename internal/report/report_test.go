@@ -105,7 +105,7 @@ func TestCardTemplateAndSpanCheck(t *testing.T) {
 	must(t, err)
 	md := c.Markdown(report.RenderOptions{})
 	for _, want := range []string{
-		"share templates across projects — qualified", fmt.Sprintf("card %d", s.opp), "2 independent origins",
+		"Jira admins — share templates across projects — qualified", fmt.Sprintf("card %d", s.opp), "2 independent origins",
 		"T1 — “We pay $40 a month for Acme Templates.”", "[snapshot", "Acme is a strong incumbent", "F2–F4 ?",
 		"M1 ✓ · M2 ✓", "P50 $1.4k", "P(≥$1k)=0.42", "service-first via outreach (first $ in ~3 wks)",
 		"8 problem interviews; kill if fewer than 2 report spend", "marketplace.example, 2026", "~4 h", fmt.Sprintf("aoe decide %d", s.opp),
@@ -118,7 +118,7 @@ func TestCardTemplateAndSpanCheck(t *testing.T) {
 		t.Fatalf("checked %d, failed %d", chk.Checked, chk.Failed)
 	}
 	blind := c.Markdown(report.RenderOptions{Blind: true, Label: "Card A"})
-	for _, leak := range []string{"card ", "snapshot", "aoe decide", "qualified", "O12"} {
+	for _, leak := range []string{"card ", "snapshot", "aoe decide", "qualified", "O12", "2026-", "more independent origins", "— jira"} {
 		if strings.Contains(blind, leak) {
 			t.Errorf("blind card leaks %q:\n%s", leak, blind)
 		}
@@ -317,6 +317,19 @@ func TestAnswerUnblocksDossier(t *testing.T) {
 	}
 	if _, err := feedback.ReviewMinutes(ctx, st, "", 30); err == nil {
 		t.Fatal("review time without a digest must fail")
+	}
+}
+
+func TestJobOf(t *testing.T) {
+	for in, want := range map[string]string{
+		"Federal agency training offices need to procure staff training (soft skills, language) but must buy it through contracts, causing spend.": "procure staff training (soft skills, language)",
+		"Jira admins need to share templates across projects, causing rework":                                                                      "share templates across projects",
+		"An admin needs to export reports.": "export reports",
+		"no job here":                       "",
+	} {
+		if got := report.JobOf(in); got != want {
+			t.Errorf("JobOf(%q) = %q, want %q", in, got, want)
+		}
 	}
 }
 
