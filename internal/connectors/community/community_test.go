@@ -39,7 +39,8 @@ func collect(t *testing.T, typ string, cfg any, cursor json.RawMessage) ([]store
 func TestHNCollectsNewDiscussionOnce(t *testing.T) {
 	var filters []string
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path != "/api/v1/search_by_date" || r.URL.Query().Get("query") != "kubernetes upgrade" {
+		q := r.URL.Query()
+		if r.URL.Path != "/api/v1/search_by_date" || q.Get("query") != `"kubernetes upgrade"` || q.Get("typoTolerance") != "false" || q.Get("advancedSyntax") != "true" {
 			http.Error(w, "unexpected "+r.URL.String(), 400)
 			return
 		}
@@ -48,7 +49,8 @@ func TestHNCollectsNewDiscussionOnce(t *testing.T) {
 		fmt.Fprintf(w, `{"hits":[
 			{"objectID":"101","comment_text":%s,"story_title":"Ask HN: upgrades","author":"Alice","created_at":"2026-10-20T10:00:00Z","created_at_i":1792500000},
 			{"objectID":"102","comment_text":"+1","author":"bob","created_at_i":1792500100},
-			{"objectID":"103","title":"Show HN: a link","url":"https://x.example","author":"carol","created_at_i":1792400000}]}`, long)
+			{"objectID":"103","title":"Show HN: a link","url":"https://x.example","author":"carol","created_at_i":1792400000},
+			{"objectID":"104","comment_text":%s,"story_title":"Ask HN: Who is hiring? (October 2026)","author":"erin","created_at_i":1792400001}]}`, long, long)
 	}))
 	defer srv.Close()
 	cfg := map[string]any{"base_url": srv.URL, "queries": []string{"kubernetes upgrade"}}

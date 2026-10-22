@@ -180,34 +180,40 @@ sources:
     enabled: true
     cadence: 24h
     config:
-      hits_per_query: 40
+      hits_per_query: 100
       lookback_days: 14         # first run
       min_text_chars: 160
+      # Matched exactly (no typo tolerance; multi-word queries as phrases).
+      # Tool names find practitioners discussing their tools far more often
+      # than descriptive phrases do. Ambiguous words ("temporal", "helm")
+      # are avoided or qualified.
       queries:
         # SRE and platform engineering
-        - kubernetes upgrade
-        - helm chart upgrade
-        - terraform drift
-        - on-call alert fatigue
-        - pagerduty pricing
-        - datadog bill
-        - observability costs
-        - incident postmortem
-        - runbook automation
-        - SLO alerting
-        - internal developer platform
+        - kubernetes
+        - terraform
+        - prometheus
+        - grafana
+        - datadog
+        - pagerduty
+        - opentelemetry
+        - argocd
+        - helm chart
+        - on-call
+        - postmortem
+        - runbook
+        - cron job
         # LLM infrastructure
-        - LLM gateway
-        - LLM observability
-        - vLLM production
-        - GPU cluster utilization
+        - vllm
+        - litellm
+        - ollama
+        - langfuse
+        - evals
         - inference costs
-        - LLM evals
+        - LLM gateway
         # Workflow orchestration
-        - airflow migration
-        - temporal workflow
+        - airflow
         - dagster
-        - cron jobs reliability
+        - prefect
   - name: github-infra
     type: github_search
     enabled: true

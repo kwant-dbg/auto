@@ -30,7 +30,14 @@ type HNConfig struct {
 	HitsPerQuery int      `json:"hits_per_query"` // per run, default 40, max 200
 	LookbackDays int      `json:"lookback_days"`  // first run, default 14
 	MinTextChars int      `json:"min_text_chars"` // skip short comments, default 160
+	// SkipStories drops items in threads whose title starts with one of these
+	// (the monthly hiring threads mention every tool by name). Defaults to
+	// DefaultSkipStories.
+	SkipStories []string `json:"skip_stories"`
 }
+
+// DefaultSkipStories are threads that mention tools without discussing them.
+var DefaultSkipStories = []string{"Ask HN: Who is hiring?", "Ask HN: Who wants to be hired?", "Ask HN: Freelancer? Seeking freelancer?"}
 
 // hnCursor is the newest item time seen per query.
 type hnCursor struct {
@@ -65,6 +72,9 @@ func init() {
 		}
 		if c.MinTextChars <= 0 {
 			c.MinTextChars = 160
+		}
+		if c.SkipStories == nil {
+			c.SkipStories = DefaultSkipStories
 		}
 		return &hn{cfg: c}, nil
 	})
@@ -101,7 +111,11 @@ func (h *hn) Fetch(ctx context.Context, env connectors.Env, cursor json.RawMessa
 	for _, q := range h.cfg.Queries {
 		since := max(cur.Since[q], floor)
 		v := url.Values{}
-		v.Set("query", q)
+		// Exact matching: typo tolerance turns "dagster" into "disaster", and
+		// unquoted words match any long comment containing both.
+		v.Set("query", phrase(q))
+		v.Set("advancedSyntax", "true")
+		v.Set("typoTolerance", "false")
 		v.Set("tags", h.cfg.Tags)
 		v.Set("hitsPerPage", strconv.Itoa(h.cfg.HitsPerQuery))
 		v.Set("numericFilters", fmt.Sprintf("created_at_i>%d", since))
@@ -127,10 +141,25 @@ func (h *hn) Fetch(ctx context.Context, env connectors.Env, cursor json.RawMessa
 	return save(), nil
 }
 
+// phrase quotes a multi-word query so it matches as a phrase; queries that
+// already use quotes or a minus sign are left as written.
+func phrase(q string) string {
+	q = strings.TrimSpace(q)
+	if strings.ContainsAny(q, `"-`) || !strings.Contains(q, " ") {
+		return q
+	}
+	return `"` + q + `"`
+}
+
 func (h *hn) document(it hnHit) (store.Document, bool) {
 	title := it.Title
 	if title == "" {
 		title = it.StoryTitle
+	}
+	for _, skip := range h.cfg.SkipStories {
+		if strings.HasPrefix(it.StoryTitle, skip) || strings.HasPrefix(it.Title, skip) {
+			return store.Document{}, false
+		}
 	}
 	text := strings.TrimSpace(textutil.HTMLFragmentToText(it.CommentText + it.StoryText))
 	kind := "story"
