@@ -372,7 +372,8 @@ func (t *Triager) apply(ctx context.Context, p problemRow, r Result, gates map[s
 			}
 		}
 
-		if _, err := tx.Exec(ctx, `DELETE FROM question WHERE opportunity_id = $1 AND origin = 'triage' AND status = 'open'`, out.OpportunityID); err != nil {
+		if _, err := tx.Exec(ctx, `DELETE FROM question WHERE opportunity_id = $1 AND origin = 'triage' AND status = 'open'
+			AND NOT EXISTS (SELECT 1 FROM task t WHERE t.question_id = question.id)`, out.OpportunityID); err != nil {
 			return err
 		}
 		questions := r.Questions

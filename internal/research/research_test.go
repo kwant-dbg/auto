@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/jackc/pgx/v5"
 	"strings"
 	"sync"
 	"testing"
@@ -421,5 +422,22 @@ func TestQualifiedOpportunitiesAreAssessedOnce(t *testing.T) {
 	e.st.DB.Exec(ctx, `UPDATE opportunity SET current_assessment_id = $2 WHERE id = $1`, e.oppID, aid)                                                              //nolint:errcheck
 	if n, _ := assess.Schedule(ctx, e.st, 5); n != 0 {
 		t.Fatal("an assessed qualified opportunity waits for dossier before re-assessment")
+	}
+}
+
+func TestFailedBuyerGateParksWithWakeCondition(t *testing.T) {
+	e := setup(t, "candidate")
+	ctx := context.Background()
+	e.st.DB.Exec(ctx, `UPDATE gate_status SET status = 'FAIL' WHERE opportunity_id = $1 AND gate_code = 'M1'`, e.oppID) //nolint:errcheck
+	var state string
+	err := pgx.BeginFunc(ctx, e.st.DB, func(tx pgx.Tx) error {
+		var err error
+		state, err = lifecycle.Advance(ctx, tx, e.oppID, "system", "research", "")
+		return err
+	})
+	var wake []byte
+	e.st.DB.QueryRow(ctx, `SELECT wake_conditions FROM decision WHERE subject_id = $1 AND to_state = 'parked'`, e.oppID).Scan(&wake) //nolint:errcheck
+	if err != nil || state != "parked" || !strings.Contains(string(wake), "evidence_count") {
+		t.Fatalf("park on M1 FAIL: state=%s err=%v wake=%s", state, err, wake)
 	}
 }

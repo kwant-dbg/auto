@@ -245,3 +245,22 @@ func TestRunSkipsMergedProblems(t *testing.T) {
 		t.Fatalf("triage of a merged problem = %+v, %v", out, err)
 	}
 }
+
+func TestRetriageKeepsQuestionsTasksReference(t *testing.T) {
+	st := testdb.New(t)
+	ctx := context.Background()
+	pid, obs := seedProblem(t, st, 3, 1)
+	tr := &Triager{Store: st, LLM: &llm.Client{Runner: &fakeRunner{out: triageOutput("PASS", "PASS", obs[0], "yes")}, Store: st}, Model: "sonnet", Founder: &founder.Profile{}}
+	out, err := tr.Run(ctx, nil, pid)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var qid int64
+	st.DB.QueryRow(ctx, `SELECT id FROM question WHERE opportunity_id = $1 AND origin = 'triage' AND status = 'open' LIMIT 1`, out.OpportunityID).Scan(&qid) //nolint:errcheck
+	if _, err := st.DB.Exec(ctx, `INSERT INTO task (type, question_id) VALUES ('research', $1)`, qid); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := tr.Run(ctx, nil, pid); err != nil {
+		t.Fatalf("re-triage with a question in a task's hands: %v", err)
+	}
+}

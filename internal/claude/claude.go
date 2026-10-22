@@ -267,7 +267,10 @@ func (r *Runner) Run(ctx context.Context, s Spec) (Result, error) {
 // classify maps rate-limit failures to ErrRateLimited so callers can defer.
 func classify(err error, text string) error {
 	t := strings.ToLower(text)
-	if strings.Contains(t, "rate limit") || strings.Contains(t, "rate_limit") || strings.Contains(t, "usage limit") || strings.Contains(t, "429") {
+	// The subscription reports its caps in prose, e.g. "You've hit your
+	// session limit · resets 10:30pm (UTC)".
+	if strings.Contains(t, "rate limit") || strings.Contains(t, "rate_limit") || strings.Contains(t, "usage limit") ||
+		strings.Contains(t, "session limit") || strings.Contains(t, "hit your limit") || strings.Contains(t, "429") {
 		return fmt.Errorf("%w: %v", ErrRateLimited, err)
 	}
 	return err

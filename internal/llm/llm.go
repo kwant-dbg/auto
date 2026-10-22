@@ -7,6 +7,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"regexp"
+	"strconv"
+	"strings"
 	"time"
 
 	"github.com/kwant-dbg/auto/internal/claude"
@@ -74,7 +77,40 @@ func (c *Client) Run(ctx context.Context, taskID *int64, s claude.Spec) (claude.
 		if backoff <= 0 {
 			backoff = 15 * time.Minute
 		}
-		return res, &worker.DeferError{Until: c.now().Add(backoff), Reason: "rate limited: " + err.Error()}
+		until := c.now().Add(backoff)
+		if reset, ok := ResetTime(err.Error(), c.now()); ok && reset.After(until) {
+			until = reset
+		}
+		return res, &worker.DeferError{Until: until, Reason: "rate limited: " + err.Error()}
 	}
 	return res, err
+}
+
+var resetRe = regexp.MustCompile(`(?i)resets\s+(\d{1,2})(?::(\d{2}))?\s*(am|pm)\s*\(utc\)`)
+
+// ResetTime reads the reset time from a limit message ("resets 10:30pm
+// (UTC)") as its next occurrence after now, plus a minute's margin.
+func ResetTime(msg string, now time.Time) (time.Time, bool) {
+	m := resetRe.FindStringSubmatch(msg)
+	if m == nil {
+		return time.Time{}, false
+	}
+	h, _ := strconv.Atoi(m[1])
+	mins := 0
+	if m[2] != "" {
+		mins, _ = strconv.Atoi(m[2])
+	}
+	if h < 1 || h > 12 || mins > 59 {
+		return time.Time{}, false
+	}
+	h %= 12
+	if strings.EqualFold(m[3], "pm") {
+		h += 12
+	}
+	now = now.UTC()
+	t := time.Date(now.Year(), now.Month(), now.Day(), h, mins, 0, 0, time.UTC)
+	if !t.After(now) {
+		t = t.Add(24 * time.Hour)
+	}
+	return t.Add(time.Minute), true
 }

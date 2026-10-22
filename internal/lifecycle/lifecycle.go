@@ -134,7 +134,19 @@ func Advance(ctx context.Context, tx pgx.Tx, oppID int64, actor, decisionType, n
 	if next == state {
 		return state, nil
 	}
-	return next, Move(ctx, tx, oppID, Transition{From: state, To: next, Actor: actor, Type: decisionType, Reason: reason, Notes: notes})
+	t := Transition{From: state, To: next, Actor: actor, Type: decisionType, Reason: reason, Notes: notes}
+	if next == "parked" {
+		// A missing buyer or spend may show up later: wake on fresh evidence,
+		// as triage does.
+		var problemID int64
+		var origins int
+		if err := tx.QueryRow(ctx, `SELECT p.id, p.independent_origin_count FROM opportunity o JOIN problem p ON p.id = o.problem_id
+			WHERE o.id = $1`, oppID).Scan(&problemID, &origins); err != nil {
+			return "", err
+		}
+		t.Wake = []Wake{{Type: "evidence_count", ProblemID: problemID, MinIndependentOrigins: origins + 3}}
+	}
+	return next, Move(ctx, tx, oppID, t)
 }
 
 // Transition is one state change to record.
