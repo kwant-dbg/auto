@@ -74,6 +74,25 @@ type Builder struct {
 	// AOEFirst draws which side of a blind pair the AOE card takes;
 	// defaults to a fair coin from crypto/rand.
 	AOEFirst func() bool
+	// Week labels the digest; empty means now's ISO week. An extra digest
+	// within a week carries a suffix (see ExtraLabel).
+	Week string
+}
+
+// ExtraLabel is the label for an additional digest in now's ISO week:
+// 2026-W43-2, then -3, and so on.
+func ExtraLabel(ctx context.Context, st *store.Store, now time.Time) (string, error) {
+	week := ISOWeek(now)
+	for n := 2; ; n++ {
+		label := fmt.Sprintf("%s-%d", week, n)
+		var taken bool
+		if err := st.DB.QueryRow(ctx, `SELECT EXISTS (SELECT 1 FROM digest WHERE week = $1)`, label).Scan(&taken); err != nil {
+			return "", err
+		}
+		if !taken {
+			return label, nil
+		}
+	}
 }
 
 // Digest is a built digest.
@@ -110,7 +129,10 @@ var ErrExists = errors.New("report: digest already exists for this week")
 // preview: nothing is written and pair ids are placeholders.
 func (b *Builder) Build(ctx context.Context, now time.Time, generatedBy string, save bool) (*Digest, error) {
 	b.Opt.Defaults()
-	week := ISOWeek(now)
+	week := b.Week
+	if week == "" {
+		week = ISOWeek(now)
+	}
 	if save {
 		d, err := b.existing(ctx, week)
 		if err == nil {

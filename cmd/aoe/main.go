@@ -62,7 +62,7 @@ Research and evaluation (agents; use the subscription)
   debate <opportunity>                          Bull vs Bear, verified, judged
 
 Weekly review (the founder's hour)
-  digest [--preview | --show WEEK|latest]       build (or show) this week's digest
+  digest [--preview | --extra | --show WEEK|latest]   build (or show) this week's digest; --extra adds another one this week
   digest --show WEEK --html|--json [--out F]    the stored digest as the review page, or as structured data
   card <opportunity> [--blind]                  one opportunity card in the fixed template
   rate <opportunity> useful|not|duplicate [--novelty 1-5] [--reason R]

@@ -26,6 +26,7 @@ var pageTemplate string
 type pageData struct {
 	*Export
 	WeekNumber string
+	Extra      bool // an additional digest within the week
 	Period     string
 	Health     []string
 	Scale      float64 // shared MRR axis, dollars
@@ -77,7 +78,8 @@ var page = template.Must(template.New("page").Funcs(template.FuncMap{
 func RenderPage(x *Export) (string, error) {
 	d := &pageData{Export: x, Scale: axisMax(x)}
 	if _, w, ok := strings.Cut(x.Week, "-W"); ok {
-		d.WeekNumber = strings.TrimLeft(w, "0")
+		w, extra, _ := strings.Cut(w, "-")
+		d.WeekNumber, d.Extra = strings.TrimLeft(w, "0"), extra != ""
 	}
 	d.Period = fmt.Sprintf("%s – %s", x.PeriodStart.UTC().Format("2 Jan"), x.PeriodEnd.UTC().Format("2 Jan 2006"))
 	if first, _, _ := strings.Cut(x.Sections["0"], "\n"); first != "" {

@@ -190,7 +190,8 @@ func unattendedStreak(ctx context.Context, st *store.Store) (int, error) {
 func StopRule(ctx context.Context, st *store.Store) (string, error) {
 	var first *time.Time
 	var weeks int
-	if err := st.DB.QueryRow(ctx, `SELECT min(period_start), count(*) FROM digest`).Scan(&first, &weeks); err != nil {
+	// Weeks of operation, not digests: an extra digest (2026-W43-2) shares its week.
+	if err := st.DB.QueryRow(ctx, `SELECT min(period_start), count(DISTINCT left(week, 8)) FROM digest`).Scan(&first, &weeks); err != nil {
 		return "", err
 	}
 	if first == nil {

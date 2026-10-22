@@ -233,6 +233,26 @@ func TestWeeklyDigestCycle(t *testing.T) {
 		t.Fatalf("second build = %+v", again)
 	}
 
+	// An extra digest in the same week has its own label and doesn't count
+	// as another week of operation.
+	label, err := report.ExtraLabel(ctx, st, now)
+	must(t, err)
+	if label != "2026-W43-2" {
+		t.Fatalf("extra label = %s", label)
+	}
+	extra, err := (&report.Builder{Store: st, Week: label}).Build(ctx, now.Add(2*time.Hour), "human", true)
+	must(t, err)
+	if extra.Existing || extra.Week != label || extra.Stats.Cards != 0 {
+		t.Fatalf("extra digest = %+v", extra)
+	}
+	xp, err := report.ExportDigest(ctx, st, label)
+	must(t, err)
+	page, err := report.RenderPage(xp)
+	must(t, err)
+	if !strings.Contains(page, "<title>AOE Review W43 Extra</title>") || !strings.Contains(page, "extra review") {
+		t.Fatal("extra review page title/eyebrow")
+	}
+
 	// Next week the unchanged card is held back; a new assessment brings it back.
 	next, err := b.Build(ctx, now.AddDate(0, 0, 7), "system", true)
 	must(t, err)
@@ -246,18 +266,20 @@ func TestWeeklyDigestCycle(t *testing.T) {
 		t.Fatal("a materially changed card must come back")
 	}
 
+	// The extra digest was built by hand, so the unattended streak counts
+	// only the two system digests after it.
 	ms, err := report.Metrics(ctx, st, now.AddDate(0, 0, 15), 4*7*24*time.Hour)
 	must(t, err)
 	got := map[string]report.Metric{}
 	for _, m := range ms {
 		got[m.Code] = m
 	}
-	if got["A6"].N != 1 || got["A6"].Met == nil || !*got["A6"].Met || got["A9"].N != 3 || got["A1"].Met == nil {
+	if got["A6"].N != 1 || got["A6"].Met == nil || !*got["A6"].Met || got["A9"].N != 2 || got["A1"].Met == nil {
 		t.Fatalf("metrics = %+v", got)
 	}
 	rule, err := report.StopRule(ctx, st)
 	must(t, err)
-	if !strings.Contains(rule, "week 3 of 8") || !strings.Contains(rule, "Too early") {
+	if !strings.Contains(rule, "week 3 of 8") || !strings.Contains(rule, "Too early") { // three weeks, four digests
 		t.Fatalf("stop rule = %q", rule)
 	}
 }

@@ -58,6 +58,7 @@ func digestCmd(ctx context.Context, cfg *config.Config, st *store.Store, args []
 	asHTML := fs.Bool("html", false, "with --show: render the stored digest as the review page (Artifact page content)")
 	asJSON := fs.Bool("json", false, "with --show: print the stored digest's structured export")
 	out := fs.String("out", "", "write to this file instead of stdout")
+	extra := fs.Bool("extra", false, "build an additional digest this week (e.g. 2026-W43-2), covering everything since the last one")
 	if _, err := parseArgs(fs, args); err != nil {
 		return err
 	}
@@ -100,6 +101,13 @@ func digestCmd(ctx context.Context, cfg *config.Config, st *store.Store, args []
 		return nil
 	}
 	b := &report.Builder{Store: st, Opt: cfg.Digest}
+	if *extra {
+		label, err := report.ExtraLabel(ctx, st, time.Now())
+		if err != nil {
+			return err
+		}
+		b.Week = label
+	}
 	d, err := b.Build(ctx, time.Now(), "human", !*preview)
 	if err != nil {
 		return err

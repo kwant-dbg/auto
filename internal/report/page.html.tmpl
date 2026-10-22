@@ -1,4 +1,4 @@
-<title>AOE Weekly Review</title>
+<title>AOE Review W{{.WeekNumber}}{{if .Extra}} Extra{{end}}</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -189,7 +189,7 @@ details.decide[open] > div { display: grid; gap: 10px; margin-top: 10px; }
 
 <main class="wrap" id="review" data-week="{{.Week}}">
   <section class="mast" aria-labelledby="title">
-    <p class="eyebrow">Week {{.WeekNumber}} · {{.Period}}</p>
+    <p class="eyebrow">Week {{.WeekNumber}}{{if .Extra}} · extra review{{end}} · {{.Period}}</p>
     <h1 id="title">What earns your hour this week</h1>
     <p class="lede">{{len .Cards}} opportunity {{if eq (len .Cards) 1}}card{{else}}cards{{end}}, {{len .Pairs}} blind {{if eq (len .Pairs) 1}}pair{{else}}pairs{{end}} against the one-shot baseline, and {{len .SpotChecks}} {{if eq (len .SpotChecks) 1}}finding{{else}}findings{{end}} to spot-check. Aim to finish in 60 minutes. Every quote below was re-checked against its saved snapshot when the digest was built.</p>
     <nav class="jump" aria-label="Sections">
