@@ -450,7 +450,8 @@ func Schedule(ctx context.Context, st *store.Store, opt Options) (int, error) {
 	// Stage priority, then evidence strength.
 	order := map[int64]int{}
 	srows, err := st.DB.Query(ctx, `SELECT o.id, array_position(ARRAY['dossier','qualified','candidate'], o.state) * 1000000
-		- p.t1_origin_count * 1000 - p.independent_origin_count FROM opportunity o JOIN problem p ON p.id = o.problem_id`)
+		- p.t1_origin_count * 1000 - p.independent_origin_count FROM opportunity o JOIN problem p ON p.id = o.problem_id
+		WHERE o.state IN ('dossier', 'qualified', 'candidate')`)
 	if err != nil {
 		return 0, err
 	}

@@ -221,6 +221,10 @@ func TestScheduleOnePerOpportunityKillFirstWithinBudget(t *testing.T) {
 	ctx := context.Background()
 	e.question(t, "price", "standard")
 	kill := e.question(t, "M4", "kill")
+	// A killed opportunity elsewhere must not break scheduling.
+	var pid int64
+	e.st.DB.QueryRow(ctx, `INSERT INTO problem (canonical_statement, segment) VALUES ('other', 'x') RETURNING id`).Scan(&pid) //nolint:errcheck
+	e.st.DB.Exec(ctx, `INSERT INTO opportunity (problem_id, segment, state) VALUES ($1, 'x', 'killed')`, pid)                 //nolint:errcheck
 	n, err := research.Schedule(ctx, e.st, research.Options{})
 	if err != nil || n != 1 {
 		t.Fatalf("scheduled %d err %v", n, err)
