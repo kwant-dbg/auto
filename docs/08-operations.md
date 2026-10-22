@@ -67,6 +67,8 @@ Decisions are recorded in one keystroke plus an optional reason code.
 - **Decisions needed.** Dossiers (saturated first), Qualified opportunities with ≥ 20 prospects (eligible for an early probe), and questions only the founder can answer, capped at `approvals`.
 - **Health.** Failed collection runs are listed apart from dead tasks: they don't retry in the queue because the source's back-off reschedules them.
 
+**Review page.** `aoe digest --show <week> --html` renders a stored digest as an interactive page, published as an Artifact. It has the same cards, the same blinding (built from the same `Display` copies, so a pair's page source carries no ids, snapshots or dates for either side) and the same span-checked quotes. The founder rates, picks, grades, decides and logs review time in place. Answers save to the artifact's own store (`feedback/rate-<card>`, `pick-<pair>`, `grade-<finding>`, `decide-<card>`, `review-<week>`; only the owner and editors can read or write them), and Claude records them in AOE through the commands below. "Copy as commands" is the fallback where the page can't save.
+
 | Command | Records |
 |---|---|
 | `aoe rate <card> useful\|not\|duplicate [--novelty 1-5] [--reason R]` | A5 usefulness, A4 duplicates, novelty |

@@ -1,0 +1,550 @@
+<title>AOE Weekly Review</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&family=Schibsted+Grotesk:wght@400;500;600;700&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,500;1,8..60,400&display=swap">
+<style>
+/* Layout: an evidence ledger. One reading column of cards; on wide screens each
+   card keeps the founder's controls in a margin rail, and blind pairs sit side by side. */
+:root {
+  --paper: #f2f4f7;
+  --surface: #ffffff;
+  --sunk: #e9edf2;
+  --ink: #17212c;
+  --muted: #5a6775;
+  --line: #d6dde5;
+  --accent: #27548a;
+  --accent-ink: #ffffff;
+  --mark: #fff1bf;
+  --pass: #2c7449;
+  --fail: #b03a2b;
+  --unknown: #94700f;
+  --strong: #1f4f80;
+  --mid: #4f78a3;
+  --weak: #8fa6bd;
+  --font-display: "Schibsted Grotesk", "Helvetica Neue", Arial, sans-serif;
+  --font-body: "Source Serif 4", Georgia, "Times New Roman", serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  --radius: 6px;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --paper: #0e141a; --surface: #151d26; --sunk: #1b2530; --ink: #e2e8ee; --muted: #93a1af; --line: #283440;
+    --accent: #86afe0; --accent-ink: #0e141a; --mark: #3b3417; --pass: #6cc08e; --fail: #ec8a7b; --unknown: #d8b45a;
+    --strong: #9cc0ea; --mid: #6f93bb; --weak: #4b6177; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --paper: #0e141a; --surface: #151d26; --sunk: #1b2530; --ink: #e2e8ee; --muted: #93a1af; --line: #283440;
+  --accent: #86afe0; --accent-ink: #0e141a; --mark: #3b3417; --pass: #6cc08e; --fail: #ec8a7b; --unknown: #d8b45a;
+  --strong: #9cc0ea; --mid: #6f93bb; --weak: #4b6177; color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body { background: var(--paper); color: var(--ink); font: 400 16px/1.55 var(--font-body); }
+body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 10; background: var(--surface); }
+a { color: var(--accent); text-underline-offset: 2px; }
+a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible, summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+h1, h2, h3, h4 { font-family: var(--font-display); text-wrap: balance; margin: 0; }
+code, .mono { font-family: var(--font-mono); font-size: 0.86em; }
+
+.bar { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5; background: var(--surface); border-bottom: 1px solid var(--line); }
+.bar-in { max-width: 1180px; margin: 0 auto; padding-block: 10px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+  display: flex; flex-wrap: wrap; gap: 8px 20px; align-items: center; font-family: var(--font-display); font-size: 14px; }
+.bar strong { font-weight: 700; letter-spacing: 0.02em; }
+.progress { display: flex; align-items: center; gap: 10px; color: var(--muted); }
+.meter { width: 120px; height: 6px; background: var(--sunk); border-radius: 3px; overflow: hidden; }
+.meter i { display: block; height: 100%; width: 0; background: var(--accent); transition: width .3s; }
+.save { margin-left: auto; color: var(--muted); }
+.save[data-state="error"] { color: var(--fail); }
+.save[data-state="saved"] { color: var(--pass); }
+
+.wrap { max-width: 1180px; margin: 0 auto; padding-block: 28px 64px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+  display: grid; grid-template-columns: minmax(0, 1fr); gap: 48px; }
+.wrap > * { min-width: 0; }
+.mast { display: grid; gap: 14px; }
+.eyebrow { font-family: var(--font-display); font-size: 12px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+.mast h1 { font-size: clamp(32px, 5vw, 48px); font-weight: 700; letter-spacing: -0.01em; line-height: 1.05; }
+.lede { max-width: 65ch; font-size: 18px; margin: 0; }
+.jump { display: flex; flex-wrap: wrap; gap: 8px; font-family: var(--font-display); font-size: 14px; }
+.jump a { padding: 4px 10px; border: 1px solid var(--line); border-radius: 999px; text-decoration: none; color: var(--ink); background: var(--surface); }
+.health { display: flex; flex-wrap: wrap; gap: 6px; margin: 0; padding: 0; list-style: none; font-family: var(--font-display); font-size: 13px; color: var(--muted); }
+.health li { padding: 3px 9px; background: var(--sunk); border-radius: var(--radius); }
+.notice { max-width: 72ch; padding: 10px 14px; border-left: 3px solid var(--unknown); background: var(--surface); font-family: var(--font-display); font-size: 14px; }
+
+section > header { display: grid; gap: 6px; margin-bottom: 18px; }
+section h2 { font-size: 24px; font-weight: 700; }
+.intro { margin: 0; max-width: 70ch; color: var(--muted); font-size: 15px; }
+.stack { display: grid; gap: 24px; }
+
+.card { display: grid; grid-template-columns: minmax(0, 1fr); background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); }
+@media (min-width: 1000px) { .card.with-rail { grid-template-columns: minmax(0, 1fr) 280px; } }
+.card-main { padding: 22px 24px; display: grid; gap: 18px; min-width: 0; }
+.card-head { display: grid; gap: 6px; }
+.card-meta { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center; font-family: var(--font-display); font-size: 13px; color: var(--muted); }
+.pill { padding: 2px 8px; border-radius: 999px; font-weight: 600; font-size: 12px; letter-spacing: 0.04em; text-transform: uppercase; background: var(--sunk); color: var(--ink); }
+.pill.label { background: var(--ink); color: var(--paper); }
+.segment { margin: 0; font-family: var(--font-display); font-size: 14px; color: var(--muted); }
+.job { font-size: 21px; font-weight: 600; line-height: 1.25; }
+.problem { margin: 0; max-width: 68ch; }
+.block { display: grid; gap: 10px; min-width: 0; }
+.block h4 { font-size: 13px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); display: flex; flex-wrap: wrap; gap: 4px 10px; }
+.block h4 span { text-transform: none; letter-spacing: 0; font-weight: 400; }
+.ev { list-style: none; margin: 0; padding: 0; display: grid; gap: 12px; }
+.ev li { display: grid; grid-template-columns: 70px minmax(0, 1fr); gap: 4px 10px; align-items: start; }
+.ev li > :not(.tier) { grid-column: 2; }
+.tier { grid-row: span 3; justify-self: start; min-width: 40px; font-family: var(--font-mono); font-size: 12px; font-weight: 500; text-align: center; padding: 2px 0; border-radius: 4px; color: var(--accent-ink); background: var(--weak); }
+.tier.t-strong { background: var(--strong); } .tier.t-mid { background: var(--mid); } .tier.t-unk { background: var(--muted); }
+.tier.tag { padding: 2px 6px; font-family: var(--font-display); font-size: 10px; letter-spacing: 0.04em; text-transform: uppercase; background: transparent; color: var(--muted); border: 1px solid var(--line); }
+.claim { margin: 0; font-family: var(--font-display); font-size: 15px; }
+blockquote { margin: 0; font-style: italic; overflow-wrap: anywhere; }
+blockquote span { background: linear-gradient(transparent 55%, var(--mark) 55%); box-decoration-break: clone; -webkit-box-decoration-break: clone; }
+cite { font-style: normal; font-family: var(--font-display); font-size: 13px; color: var(--muted); overflow-wrap: anywhere; }
+.more { margin: 0; font-family: var(--font-display); font-size: 13px; color: var(--muted); display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.more .tier { grid-row: auto; padding: 1px 6px; }
+.counter .tier { padding: 2px 6px; font-family: var(--font-display); font-size: 10px; letter-spacing: 0.04em; text-transform: uppercase; background: transparent; color: var(--fail); border: 1px solid currentColor; }
+.none { margin: 0; color: var(--muted); font-style: italic; }
+
+.gates { display: flex; flex-wrap: wrap; gap: 6px; margin: 0; padding: 0; list-style: none; }
+.gates li { font-family: var(--font-mono); font-size: 12px; padding: 3px 8px; border-radius: 4px; border: 1px solid var(--line); color: var(--muted); }
+.gates li.PASS { color: var(--pass); border-color: currentColor; }
+.gates li.FAIL { color: var(--fail); border-color: currentColor; font-weight: 500; }
+.gates li.UNKNOWN { color: var(--unknown); border-style: dashed; }
+
+.numbers { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px 24px; align-items: end; padding: 14px 16px; background: var(--sunk); border-radius: var(--radius); }
+.numbers h4 { grid-column: 1 / -1; }
+.range { position: relative; height: 44px; min-width: 0; }
+.range .axis { position: absolute; left: 0; right: 0; top: 14px; height: 6px; background: var(--line); border-radius: 3px; }
+.range .span { position: absolute; top: 14px; height: 6px; background: var(--mid); border-radius: 3px; min-width: 2px; }
+.range .p50 { position: absolute; top: 8px; width: 3px; height: 18px; margin-left: -1px; background: var(--ink); border-radius: 1px; }
+.range .tick { position: absolute; top: 28px; font-family: var(--font-mono); font-size: 11px; color: var(--muted); transform: translateX(-50%); white-space: nowrap; }
+.range .tick.lo { transform: none; } .range .tick.hi { transform: translateX(-100%); }
+.odds { display: flex; gap: 18px; font-family: var(--font-display); }
+.odds div { display: grid; }
+.odds b { font-family: var(--font-mono); font-size: 22px; font-weight: 500; font-variant-numeric: tabular-nums; }
+.odds span { font-size: 12px; color: var(--muted); }
+.scale-note { grid-column: 1 / -1; margin: 0; font-family: var(--font-display); font-size: 12px; color: var(--muted); }
+.unassessed { margin: 0; font-family: var(--font-display); color: var(--muted); }
+
+.facts { display: grid; grid-template-columns: 150px minmax(0, 1fr); gap: 10px 18px; margin: 0; }
+.facts dt { font-family: var(--font-display); font-size: 13px; font-weight: 600; color: var(--muted); padding-top: 2px; }
+.facts dd { margin: 0; min-width: 0; }
+.facts ul { margin: 0; padding-left: 18px; display: grid; gap: 4px; }
+.hours { font-family: var(--font-mono); font-size: 13px; color: var(--muted); white-space: nowrap; }
+@media (max-width: 640px) { .facts { grid-template-columns: minmax(0, 1fr); gap: 2px; } .facts dd { margin-bottom: 10px; } .numbers { grid-template-columns: minmax(0, 1fr); } }
+
+.rail { padding: 20px; border-top: 1px solid var(--line); display: grid; gap: 16px; align-content: start; font-family: var(--font-display); font-size: 14px; }
+@media (min-width: 1000px) { .rail { border-top: 0; border-left: 1px solid var(--line); } .rail-in { position: sticky; top: 64px; display: grid; gap: 16px; } }
+@media (max-width: 999px) { .rail-in { display: grid; gap: 16px; } }
+.rail h4 { font-size: 13px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
+fieldset { border: 0; margin: 0; padding: 0; display: grid; gap: 6px; min-width: 0; }
+legend { padding: 0; margin-bottom: 6px; font-weight: 500; }
+.seg { display: flex; flex-wrap: wrap; gap: 6px; }
+.seg button, .btn { font: 500 14px/1 var(--font-display); padding: 8px 12px; border-radius: var(--radius); border: 1px solid var(--line); background: var(--surface); color: var(--ink); cursor: pointer; }
+.seg button:hover, .btn:hover { border-color: var(--accent); }
+.seg button[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+.seg.small button { padding: 6px 10px; min-width: 34px; }
+.seg button:disabled, input:disabled, select:disabled { opacity: .55; cursor: not-allowed; }
+.hint { font-size: 12px; color: var(--muted); }
+input[type="text"], input[type="number"], input[type="date"], select { font: 400 14px var(--font-display); padding: 8px 10px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); color: var(--ink); width: 100%; min-width: 0; }
+label { display: grid; gap: 4px; }
+details.decide { border-top: 1px dashed var(--line); padding-top: 12px; }
+details.decide summary { cursor: pointer; font-weight: 600; }
+details.decide[open] > div { display: grid; gap: 10px; margin-top: 10px; }
+
+.pair { display: grid; gap: 16px; }
+.pair-cards { display: grid; gap: 16px; grid-template-columns: minmax(0, 1fr); }
+@media (min-width: 1000px) { .pair-cards { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.pick { display: flex; flex-wrap: wrap; gap: 12px 20px; align-items: end; padding: 16px 20px; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); font-family: var(--font-display); }
+.pick fieldset { flex: 0 0 auto; }
+.pick label { flex: 1 1 260px; }
+.pair h3 { font-size: 16px; font-weight: 600; }
+
+.finding { display: grid; gap: 12px; padding: 18px 20px; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); }
+.finding .claim { font-size: 16px; }
+.finding .row { display: flex; flex-wrap: wrap; gap: 12px 20px; align-items: end; font-family: var(--font-display); }
+.finding .row label { flex: 1 1 240px; }
+
+.ledger { display: grid; gap: 24px; grid-template-columns: minmax(0, 1fr); }
+@media (min-width: 900px) { .ledger { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+.ledger section { min-width: 0; }
+.ledger h2 { font-size: 18px; }
+.md { font-family: var(--font-display); font-size: 14px; }
+.md p { margin: 0 0 8px; }
+.md ul, .md ol { margin: 0; padding-left: 18px; display: grid; gap: 6px; }
+.md code { background: var(--sunk); padding: 1px 4px; border-radius: 3px; }
+
+.finish { display: grid; gap: 16px; padding: 22px 24px; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); font-family: var(--font-display); }
+.finish .row { display: flex; flex-wrap: wrap; gap: 12px; align-items: end; }
+.finish label { width: 160px; }
+.commands { margin: 0; padding: 12px 14px; background: var(--sunk); border-radius: var(--radius); font: 400 12.5px/1.6 var(--font-mono); white-space: pre; overflow-x: auto; max-height: 260px; }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+
+<div class="bar"><div class="bar-in">
+  <strong>AOE weekly review</strong>
+  <span class="mono">{{.Week}}</span>
+  <span class="progress"><span class="meter"><i id="meter"></i></span><span id="progress-text">0 answered</span></span>
+  <span class="save" id="save" data-state="idle">Connecting…</span>
+</div></div>
+
+<main class="wrap" id="review" data-week="{{.Week}}">
+  <section class="mast" aria-labelledby="title">
+    <p class="eyebrow">Week {{.WeekNumber}} · {{.Period}}</p>
+    <h1 id="title">What earns your hour this week</h1>
+    <p class="lede">{{len .Cards}} opportunity {{if eq (len .Cards) 1}}card{{else}}cards{{end}}, {{len .Pairs}} blind {{if eq (len .Pairs) 1}}pair{{else}}pairs{{end}} against the one-shot baseline, and {{len .SpotChecks}} {{if eq (len .SpotChecks) 1}}finding{{else}}findings{{end}} to spot-check. Aim to finish in 60 minutes. Every quote below was re-checked against its saved snapshot when the digest was built.</p>
+    <nav class="jump" aria-label="Sections">
+      <a href="#cards">Cards</a><a href="#pairs">Blind pairs</a><a href="#findings">Spot-checks</a><a href="#ledger">Changes and kills</a><a href="#finish">Finish</a>
+    </nav>
+    <ul class="health" aria-label="System health">{{range .Health}}<li>{{.}}</li>{{end}}</ul>
+    <p class="notice" id="notice" hidden></p>
+  </section>
+
+  <section aria-labelledby="decisions-h">
+    <header><h2 id="decisions-h">Decisions needed</h2></header>
+    <div class="md">{{md (index .Sections "1")}}</div>
+  </section>
+
+  <section id="cards" aria-labelledby="cards-h">
+    <header>
+      <h2 id="cards-h">Top opportunities</h2>
+      <p class="intro">Rate each card: is it worth 30 more minutes? Novelty asks whether you'd have thought of it yourself. Decisions are optional and go through the same checks as the command line.</p>
+    </header>
+    <div class="stack">
+      {{range .Cards}}{{template "card" (cardView . $ false "")}}{{else}}<div class="md">{{md (index $.Sections "2")}}</div>{{end}}
+    </div>
+  </section>
+
+  <section id="pairs" aria-labelledby="pairs-h">
+    <header>
+      <h2 id="pairs-h">Blind pairs</h2>
+      <p class="intro">One card in each pair is AOE's and the other is the one-shot baseline's, on a side drawn at random. Pick the one you'd rather spend an hour on. Which side was which is never on this page.</p>
+    </header>
+    <div class="stack">
+      {{range .Pairs}}
+      <div class="pair" data-doc="pick-{{.ID}}" data-kind="pairwise" data-subject="{{.ID}}">
+        <h3>Pair {{.ID}}</h3>
+        <div class="pair-cards">
+          {{template "card" (cardView .A $ true "Card A")}}
+          {{template "card" (cardView .B $ true "Card B")}}
+        </div>
+        <div class="pick">
+          <fieldset class="seg" data-field="value"><legend>I'd rather spend an hour on</legend>
+            <button type="button" data-v="A">Card A</button><button type="button" data-v="B">Card B</button>
+          </fieldset>
+          <label for="pick-{{.ID}}-reason">Why (optional)<input type="text" id="pick-{{.ID}}-reason" data-field="reason" placeholder="e.g. stronger spend evidence"></label>
+        </div>
+      </div>
+      {{else}}<div class="md">{{md (index $.Sections "4")}}</div>{{end}}
+    </div>
+  </section>
+
+  <section id="findings" aria-labelledby="findings-h">
+    <header>
+      <h2 id="findings-h">Spot-check these findings</h2>
+      <p class="intro">Each claim was verified against the quotes beneath it. Do the quotes really support it?</p>
+    </header>
+    <div class="stack">
+      {{range .SpotChecks}}
+      <div class="finding" data-doc="grade-{{.ID}}" data-kind="grade" data-subject="{{.ID}}">
+        <p class="claim">{{.Claim}}</p>
+        <ul class="ev">{{range .Quotes}}<li><span class="tier tag">Quote</span><blockquote><span>“{{.Quote}}”</span></blockquote><cite><a href="{{.URL}}" target="_blank" rel="noopener">{{.Source}}</a></cite></li>{{end}}</ul>
+        <div class="row">
+          <fieldset class="seg" data-field="value"><legend>Finding {{.ID}}{{if .OpportunityID}} · opportunity {{.OpportunityID}}{{end}}</legend>
+            <button type="button" data-v="supported">Supported</button><button type="button" data-v="overclaimed">Overclaimed</button><button type="button" data-v="wrong">Wrong</button>
+          </fieldset>
+          <label for="grade-{{.ID}}-reason">Note (optional)<input type="text" id="grade-{{.ID}}-reason" data-field="reason"></label>
+        </div>
+      </div>
+      {{else}}<p class="none">No verified findings to grade this week.</p>{{end}}
+    </div>
+  </section>
+
+  <div class="ledger" id="ledger">
+    <section aria-labelledby="changes-h"><header><h2 id="changes-h">Notable changes</h2></header><div class="md">{{md (index .Sections "3")}}</div></section>
+    <section aria-labelledby="woken-h"><header><h2 id="woken-h">Woken from parked</h2></header><div class="md">{{md (index .Sections "6")}}</div></section>
+    <section aria-labelledby="killed-h"><header><h2 id="killed-h">Killed this week</h2></header><div class="md">{{md (index .Sections "7")}}</div></section>
+  </div>
+
+  <section id="finish" aria-labelledby="finish-h">
+    <div class="finish" data-doc="review-{{.Week}}" data-kind="review_time" data-subject="{{.Week}}">
+      <h2 id="finish-h">Finish</h2>
+      <p class="intro">Your answers save as you go. Claude reads them from this page and records them in AOE. If saving isn't available here, copy them as commands instead.</p>
+      <div class="row">
+        <label for="review-minutes">Minutes spent<input type="number" id="review-minutes" min="0" max="600" inputmode="numeric" data-field="minutes" data-number="1"></label>
+        <button type="button" class="btn" id="copy">Copy as commands</button>
+      </div>
+      <pre class="commands" id="commands" aria-live="polite">No answers yet.</pre>
+    </div>
+  </section>
+</main>
+
+{{define "card"}}{{$c := .Card}}
+<article class="card{{if not .Blind}} with-rail{{end}}">
+  <div class="card-main">
+    <header class="card-head">
+      <div class="card-meta">
+        {{if .Blind}}<span class="pill label">{{.Label}}</span>{{else}}<span class="pill">{{$c.State}}</span><span>card {{$c.OpportunityID}} · first seen {{$c.FirstSeen}}</span>{{end}}
+      </div>
+      <p class="segment">{{$c.Segment}}</p>
+      <h3 class="job">{{$c.Job}}</h3>
+    </header>
+    <p class="problem">{{$c.Problem}}</p>
+
+    <div class="block">
+      <h4>Best evidence {{if $c.Origins}}<span>{{$c.Origins}} independent origins</span>{{end}}</h4>
+      {{if or $c.Evidence $c.Findings}}
+      <ul class="ev">
+        {{range $c.Evidence}}<li><span class="tier {{tierClass .Tier}}">{{tier .Tier}}</span><blockquote><span>“{{.Quote}}”</span></blockquote><cite>{{.Source}}{{if .Date}} · {{.Date}}{{end}}{{if .URL}} · <a href="{{.URL}}" target="_blank" rel="noopener">{{if .Snapshot}}snapshot {{.Snapshot.DocumentID}}{{else}}source{{end}}</a>{{end}}</cite></li>{{end}}
+        {{range $c.Findings}}<li><span class="tier tag">Research</span><p class="claim">{{.Claim}}</p><blockquote><span>“{{.Quote}}”</span></blockquote><cite>{{.Source}}{{if .Date}} · {{.Date}}{{end}}{{if .URL}} · <a href="{{.URL}}" target="_blank" rel="noopener">{{if .Snapshot}}snapshot {{.Snapshot.DocumentID}}{{else}}source{{end}}</a>{{end}}</cite></li>{{end}}
+      </ul>
+      {{else}}<p class="none">None.</p>{{end}}
+      {{if $c.MoreOrigins}}<p class="more">Plus {{range $c.MoreOrigins}}<span class="tier {{tierClass .Tier}}">{{tier .Tier}}</span>×{{.Origins}} {{end}}more independent origins not quoted here.</p>{{end}}
+    </div>
+
+    <div class="block counter">
+      <h4>Counter-evidence</h4>
+      {{if $c.Counter}}<ul class="ev">{{range $c.Counter}}<li><span class="tier">against</span>{{if .Claim}}<p class="claim">{{.Claim}}</p>{{end}}<blockquote><span>“{{.Quote}}”</span></blockquote><cite>{{.Source}}{{if .Date}} · {{.Date}}{{end}}{{if .URL}} · <a href="{{.URL}}" target="_blank" rel="noopener">{{if .Snapshot}}snapshot {{.Snapshot.DocumentID}}{{else}}source{{end}}</a>{{end}}</cite></li>{{end}}</ul>
+      {{else}}<p class="none">None found.</p>{{end}}
+    </div>
+
+    <ul class="gates" aria-label="Gates">{{range gates $c.Gates $c.Prospects}}<li class="{{.Status}}" title="{{.Title}}">{{.Code}} {{.Mark}}{{if .Note}} {{.Note}}{{end}}</li>{{end}}</ul>
+
+    {{if $c.MRR}}
+    <div class="numbers">
+      <h4 class="eyebrow">Monthly revenue 12 months in</h4>
+      <div class="range" role="img" aria-label="P10 {{money $c.MRR.P10}}, median {{money $c.MRR.P50}}, P90 {{money $c.MRR.P90}}">
+        <span class="axis"></span>
+        <span class="span" style="{{spanStyle $c.MRR.P10 $c.MRR.P90 .Scale}}"></span>
+        <span class="p50" style="{{pointStyle $c.MRR.P50 .Scale}}"></span>
+        <span class="tick lo" style="left: 0">$0</span>
+        <span class="tick hi" style="left: 100%">{{money .Scale}}</span>
+      </div>
+      <div class="odds">
+        <div><b>{{prob $c.MRR.PGe1k}}</b><span>P(≥ $1k)</span></div>
+        <div><b>{{prob $c.MRR.PGe5k}}</b><span>P(≥ $5k)</span></div>
+      </div>
+      <p class="scale-note">P10 <b class="mono">{{money $c.MRR.P10}}</b> · median <b class="mono">{{money $c.MRR.P50}}</b> · P90 <b class="mono">{{money $c.MRR.P90}}</b>. The bar runs P10 to P90 with the median marked, on one $0–{{money .Scale}} scale shared by every card on this page.</p>
+    </div>
+    {{else}}<p class="unassessed">Not assessed yet.</p>{{end}}
+
+    <dl class="facts">
+      {{if $c.Paths}}<dt>Paths</dt><dd><ul>{{range $c.Paths}}<li><b>{{pathName .Name}}</b>{{if .Channel}} via {{.Channel}}{{end}}{{if .Weeks}} <span class="hours">first $ ~{{printf "%.0f" .Weeks}} wks</span>{{end}}</li>{{end}}</ul></dd>{{end}}
+      {{if $c.Weakest}}<dt>Weakest link</dt><dd>{{$c.Weakest}}</dd>{{end}}
+      {{if $c.Debate}}<dt>Debate</dt><dd>{{$c.Debate}}</dd>{{end}}
+      <dt>Next experiment</dt><dd>{{if $c.NextExperiment}}{{$c.NextExperiment}} {{if $c.FounderHours}}<span class="hours">~{{printf "%.0f" $c.FounderHours}} h of your time</span>{{end}}{{else}}None proposed yet.{{end}}</dd>
+    </dl>
+  </div>
+
+  {{if not .Blind}}
+  <aside class="rail" aria-label="Your call on card {{$c.OpportunityID}}"><div class="rail-in">
+    <h4>Your call</h4>
+    <div class="group" data-doc="rate-{{$c.OpportunityID}}" data-kind="rating" data-subject="{{$c.OpportunityID}}">
+      <fieldset class="seg" data-field="value"><legend>Worth 30 more minutes?</legend>
+        <button type="button" data-v="useful">Yes</button><button type="button" data-v="not_useful">No</button><button type="button" data-v="duplicate">Seen it before</button>
+      </fieldset>
+      <fieldset class="seg small" data-field="novelty" data-number="1"><legend>Would you have thought of it yourself?</legend>
+        <button type="button" data-v="1" title="Obviously">1</button><button type="button" data-v="2">2</button><button type="button" data-v="3">3</button><button type="button" data-v="4">4</button><button type="button" data-v="5" title="Never">5</button>
+        <span class="hint">1 obviously · 5 never</span>
+      </fieldset>
+      <label for="rate-{{$c.OpportunityID}}-reason">Note (optional)<input type="text" id="rate-{{$c.OpportunityID}}-reason" data-field="reason"></label>
+    </div>
+    <details class="decide group" data-doc="decide-{{$c.OpportunityID}}" data-kind="decision" data-subject="{{$c.OpportunityID}}">
+      <summary>Decide (optional)</summary>
+      <div>
+        <fieldset class="seg" data-field="action"><legend>Move it</legend>
+          <button type="button" data-v="advance">Advance</button><button type="button" data-v="park">Park</button><button type="button" data-v="kill">Kill</button>
+        </fieldset>
+        <label for="decide-{{$c.OpportunityID}}-reason">Reason
+          <select id="decide-{{$c.OpportunityID}}-reason" data-field="reason">
+            <option value="">Choose a reason</option>
+            <option value="not_now">not_now (park only)</option>
+            {{range killReasons}}<option value="{{.}}">{{.}}</option>{{end}}
+          </select>
+        </label>
+        <label for="decide-{{$c.OpportunityID}}-wake">Wake on (park)<input type="date" id="decide-{{$c.OpportunityID}}-wake" data-field="wake_date"></label>
+        <span class="hint">Advancing checks the stage rules and lists what's missing. Parking needs a wake date.</span>
+      </div>
+    </details>
+  </div></aside>
+  {{end}}
+</article>
+{{end}}
+
+<script>
+(function () {
+  "use strict";
+  var root = document.getElementById("review");
+  var week = root.dataset.week;
+  var saveEl = document.getElementById("save");
+  var notice = document.getElementById("notice");
+  var state = {};        // doc id -> fields, as saved or edited
+  var queue = {};        // doc id -> pending timer
+  var inflight = {};     // doc id -> promise of the write in progress
+  var db = null, writable = true;
+
+  function groups() { return Array.prototype.slice.call(document.querySelectorAll("[data-doc]")); }
+  function setSave(s, text) { saveEl.dataset.state = s; saveEl.textContent = text; }
+
+  function base(g) {
+    var kind = g.dataset.kind, subj = g.dataset.subject, b = { kind: kind, week: week };
+    if (kind === "rating" || kind === "decision") b.opportunity_id = Number(subj);
+    if (kind === "pairwise") b.pair_id = Number(subj);
+    if (kind === "grade") b.finding_id = Number(subj);
+    return b;
+  }
+
+  // Reflect state into the controls of one group.
+  function paint(g) {
+    var s = state[g.dataset.doc] || {};
+    g.querySelectorAll("fieldset[data-field]").forEach(function (fs) {
+      var v = s[fs.dataset.field];
+      fs.querySelectorAll("button[data-v]").forEach(function (b) {
+        b.setAttribute("aria-pressed", String(v !== undefined && v !== null && String(v) === b.dataset.v));
+        b.disabled = !writable;
+      });
+    });
+    g.querySelectorAll("input[data-field], select[data-field]").forEach(function (el) {
+      if (document.activeElement !== el) {
+        var v = s[el.dataset.field];
+        el.value = v === undefined || v === null ? "" : String(v);
+      }
+      el.disabled = !writable;
+    });
+    if (g.tagName === "DETAILS" && s.action) g.open = true;
+  }
+
+  function answered(doc) {
+    var s = state[doc] || {};
+    if (doc.indexOf("decide-") === 0) return false;
+    return s.value || s.minutes !== undefined && s.minutes !== null && s.minutes !== "";
+  }
+
+  function progress() {
+    var docs = groups().map(function (g) { return g.dataset.doc; }).filter(function (d) { return d.indexOf("decide-") !== 0; });
+    var done = docs.filter(answered).length;
+    document.getElementById("meter").style.width = (docs.length ? 100 * done / docs.length : 0) + "%";
+    document.getElementById("progress-text").textContent = done + " of " + docs.length + " answered";
+    commands();
+  }
+
+  function q(s) { return "'" + String(s).replace(/'/g, "'\\''") + "'"; }
+  function commands() {
+    var lines = [];
+    groups().forEach(function (g) {
+      var s = state[g.dataset.doc] || {}, id = g.dataset.subject, r = s.reason ? " --reason " + q(s.reason) : "";
+      switch (g.dataset.kind) {
+        case "rating":
+          if (s.value) lines.push("aoe rate " + id + " " + s.value + (s.novelty ? " --novelty " + s.novelty : "") + r);
+          break;
+        case "decision":
+          if (s.action) lines.push("aoe decide " + id + " " + s.action + (s.reason ? " --reason " + s.reason : "") + (s.action === "park" && s.wake_date ? " --wake date:" + s.wake_date : ""));
+          break;
+        case "pairwise":
+          if (s.value) lines.push("aoe pick " + id + " " + s.value + r);
+          break;
+        case "grade":
+          if (s.value) lines.push("aoe grade " + id + " " + s.value + r);
+          break;
+        case "review_time":
+          if (s.minutes !== undefined && s.minutes !== null && s.minutes !== "") lines.push("aoe review-time " + s.minutes + " --week " + week);
+          break;
+      }
+    });
+    document.getElementById("commands").textContent = lines.length ? lines.join("\n") : "No answers yet.";
+  }
+
+  function write(doc) {
+    if (!db || !writable) { progress(); return; }
+    var body = Object.assign({}, state[doc], { updated_at: new Date().toISOString() });
+    var prev = inflight[doc] || Promise.resolve();
+    setSave("saving", "Saving…");
+    var p = prev.then(function () { return db.collection("feedback").doc(doc).set(body); }).then(function () {
+      if (inflight[doc] === p) { delete inflight[doc]; }
+      if (!Object.keys(inflight).length) setSave("saved", "Saved");
+    }, function (e) {
+      delete inflight[doc];
+      if (e && e.code === "invalid_argument") {
+        writable = false; groups().forEach(paint);
+        showNotice("Only the page's owner or editors can answer here. Your choices weren't saved.");
+        setSave("error", "Read-only");
+      } else {
+        setSave("error", "Not saved: " + ((e && e.message) || "try again"));
+      }
+    });
+    inflight[doc] = p;
+  }
+
+  function change(g, field, value, delay) {
+    var doc = g.dataset.doc;
+    state[doc] = Object.assign(base(g), state[doc] || {});
+    state[doc][field] = value;
+    paint(g); progress();
+    clearTimeout(queue[doc]);
+    queue[doc] = setTimeout(function () { delete queue[doc]; write(doc); }, delay);
+  }
+
+  function showNotice(text) { notice.textContent = text; notice.hidden = false; }
+
+  groups().forEach(function (g) {
+    g.addEventListener("click", function (ev) {
+      var b = ev.target.closest("button[data-v]");
+      if (!b || !g.contains(b) || b.closest("[data-doc]") !== g) return;
+      var fs = b.closest("fieldset[data-field]");
+      var cur = (state[g.dataset.doc] || {})[fs.dataset.field];
+      var v = fs.dataset.number ? Number(b.dataset.v) : b.dataset.v;
+      change(g, fs.dataset.field, String(cur) === String(v) ? null : v, 0);
+    });
+    g.addEventListener("input", function (ev) {
+      var el = ev.target;
+      if (!el.dataset || !el.dataset.field || el.closest("[data-doc]") !== g) return;
+      var v = el.value;
+      if (el.dataset.number) v = v === "" ? null : Math.max(0, Math.round(Number(v)));
+      change(g, el.dataset.field, v, el.tagName === "SELECT" || el.type === "date" ? 0 : 700);
+    });
+  });
+
+  document.getElementById("copy").addEventListener("click", function () {
+    var pre = document.getElementById("commands"), text = pre.textContent, btn = this;
+    function selectIt() { var r = document.createRange(); r.selectNodeContents(pre); var s = window.getSelection(); s.removeAllRanges(); s.addRange(r); }
+    try {
+      navigator.clipboard.writeText(text).then(function () { btn.textContent = "Copied"; setTimeout(function () { btn.textContent = "Copy as commands"; }, 1500); }, selectIt);
+    } catch (e) { selectIt(); }
+  });
+
+  groups().forEach(paint); progress();
+
+  if (!window.claude || !window.claude.use) {
+    setSave("error", "Not saving");
+    showNotice("This copy of the page can't save answers. Use “Copy as commands” at the end and paste them to Claude.");
+    return;
+  }
+  Promise.all([window.claude.use("db"), window.claude.use("user")]).then(function (caps) {
+    db = caps[0];
+    var user = caps[1];
+    if (!db) {
+      setSave("error", "Not saving");
+      showNotice("Saving isn't available in this view. Your choices stay on the page; use “Copy as commands” at the end.");
+      return;
+    }
+    (user ? user.canEdit() : Promise.resolve(null)).then(function (canEdit) {
+      if (canEdit === false) {
+        writable = false;
+        showNotice("You're viewing someone else's review. Only its owner and editors can answer.");
+      }
+      groups().forEach(paint);
+    });
+    setSave("idle", "Loading answers…");
+    db.collection("feedback").onSnapshot(function (snap) {
+      snap.docs.forEach(function (d) {
+        // Keep local edits that haven't been written back yet.
+        if (!queue[d.id] && !inflight[d.id]) state[d.id] = Object.assign({}, d.data());
+      });
+      groups().forEach(paint); progress();
+      if (!Object.keys(inflight).length) setSave("saved", snap.empty ? "Ready" : "Saved");
+    }, function (e) {
+      setSave("error", "Not syncing");
+      showNotice("Answers stopped syncing (" + ((e && e.code) || "error") + "). Reload the page; anything not saved is in “Copy as commands”.");
+    });
+  });
+})();
+</script>

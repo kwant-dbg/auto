@@ -91,18 +91,28 @@ type RenderOptions struct {
 	Label string
 }
 
-// Markdown renders the card in the fixed template.
-func (c *Card) Markdown(o RenderOptions) string {
+// Display returns the card as a reader sees it: internal evidence references
+// scrubbed from model text and, when blind, everything that identifies its
+// source removed — ids, state, first-seen week, snapshot pointers, source
+// names, dates and AOE's uncited-origin counts. Every renderer (markdown,
+// the review page) shows only Display copies.
+func (c *Card) Display(blind bool) *Card {
 	cp := *c
 	cp.Weakest, cp.Debate, cp.NextExperiment, cp.Problem = scrub(c.Weakest), scrub(c.Debate), scrub(c.NextExperiment), scrub(c.Problem)
-	if o.Blind {
+	if blind {
 		// The two systems cite and date sources differently, and only AOE
 		// counts uncited origins; normalise all three so neither side is
 		// recognisable by its format.
 		cp.Evidence, cp.Findings, cp.Counter = blindEvidence(c.Evidence), blindEvidence(c.Findings), blindEvidence(c.Counter)
 		cp.MoreOrigins = nil
+		cp.OpportunityID, cp.State, cp.FirstSeen = 0, "", ""
 	}
-	c = &cp
+	return &cp
+}
+
+// Markdown renders the card in the fixed template.
+func (c *Card) Markdown(o RenderOptions) string {
+	c = c.Display(o.Blind)
 	var b strings.Builder
 	head := fmt.Sprintf("%s — %s", oneLine(c.Segment), oneLine(c.Job))
 	switch {
@@ -202,7 +212,7 @@ func blindEvidence(es []Evidence) []Evidence {
 		if h := host(e.URL); h != "" {
 			e.Source = h
 		}
-		e.Date = ""
+		e.Date, e.Snapshot = "", nil
 		out[i] = e
 	}
 	return out

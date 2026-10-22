@@ -63,6 +63,7 @@ Research and evaluation (agents; use the subscription)
 
 Weekly review (the founder's hour)
   digest [--preview | --show WEEK|latest]       build (or show) this week's digest
+  digest --show WEEK --html|--json [--out F]    the stored digest as the review page, or as structured data
   card <opportunity> [--blind]                  one opportunity card in the fixed template
   rate <opportunity> useful|not|duplicate [--novelty 1-5] [--reason R]
   pick <pair> A|B [--reason R]                  blind pair: the card you'd rather spend an hour on

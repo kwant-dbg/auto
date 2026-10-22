@@ -193,6 +193,39 @@ func TestWeeklyDigestCycle(t *testing.T) {
 		t.Fatal("picking the AOE side must count as a win")
 	}
 
+	// The export and the review page never say which side of a pair is AOE.
+	x, err := report.ExportDigest(ctx, st, "latest")
+	must(t, err)
+	if len(x.Cards) != 1 || len(x.Pairs) != 1 || len(x.SpotChecks) < 1 || x.Sections["7"] == "" {
+		t.Fatalf("export = %d cards, %d pairs, %d spot checks, sections %v", len(x.Cards), len(x.Pairs), len(x.SpotChecks), x.Sections)
+	}
+	for _, c := range []*report.Card{x.Pairs[0].A, x.Pairs[0].B} {
+		raw, _ := json.Marshal(c)
+		if c.OpportunityID != 0 || c.State != "" || strings.Contains(string(raw), "snapshot") || strings.Contains(string(raw), "2026-") {
+			t.Fatalf("blind pair card carries identifying data: %s", raw)
+		}
+	}
+	if x.Pairs[0].A.Segment != "Jira admins" {
+		t.Fatalf("the AOE card must take the side the digest drew (A): %+v", x.Pairs[0].A)
+	}
+	html, err := report.RenderPage(x)
+	must(t, err)
+	pairsPart := html[strings.Index(html, `id="pairs"`):strings.Index(html, `id="findings"`)]
+	for _, want := range []string{"What earns your hour this week", `data-doc="rate-` + fmt.Sprint(s.opp), `data-doc="pick-` + fmt.Sprint(pair),
+		"Card A", "Card B", "founder_veto", "T1", "P(≥ $1k)"} {
+		if !strings.Contains(html, want) {
+			t.Errorf("review page lacks %q", want)
+		}
+	}
+	for _, leak := range []string{fmt.Sprintf("card %d", s.opp), "snapshot", "qualified", "rate-"} {
+		if strings.Contains(pairsPart, leak) {
+			t.Errorf("pairs section leaks %q", leak)
+		}
+	}
+	if strings.Contains(html, "<!doctype") || strings.Contains(html, "<body") {
+		t.Error("the page is Artifact content: no document skeleton")
+	}
+
 	// The same week returns the stored digest.
 	again, err := b.Build(ctx, now.Add(time.Hour), "system", true)
 	must(t, err)

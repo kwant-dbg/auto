@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"flag"
 	"fmt"
@@ -54,8 +55,40 @@ func digestCmd(ctx context.Context, cfg *config.Config, st *store.Store, args []
 	fs := flag.NewFlagSet("digest", flag.ContinueOnError)
 	preview := fs.Bool("preview", false, "render this week's digest without saving it")
 	show := fs.String("show", "", "print a stored digest (ISO week, e.g. 2026-W43; 'latest' for the newest)")
+	asHTML := fs.Bool("html", false, "with --show: render the stored digest as the review page (Artifact page content)")
+	asJSON := fs.Bool("json", false, "with --show: print the stored digest's structured export")
+	out := fs.String("out", "", "write to this file instead of stdout")
 	if _, err := parseArgs(fs, args); err != nil {
 		return err
+	}
+	if *asHTML || *asJSON {
+		if *show == "" {
+			*show = "latest"
+		}
+		x, err := report.ExportDigest(ctx, st, *show)
+		if err != nil {
+			return err
+		}
+		var body []byte
+		if *asJSON {
+			body, err = json.MarshalIndent(x, "", "  ")
+		} else {
+			var page string
+			page, err = report.RenderPage(x)
+			body = []byte(page)
+		}
+		if err != nil {
+			return err
+		}
+		if *out == "" {
+			_, err = os.Stdout.Write(body)
+			return err
+		}
+		if err := os.WriteFile(*out, body, 0o644); err != nil {
+			return err
+		}
+		fmt.Fprintf(os.Stderr, "wrote %s (%s, %d bytes)\n", *out, x.Week, len(body))
+		return nil
 	}
 	if *show != "" {
 		var md string

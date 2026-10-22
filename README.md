@@ -90,6 +90,7 @@ It wasn't unattended: deploying those fixes took restarts and a digest rebuild, 
 ```sh
 aoe digest --preview               # this week's digest without saving it (the scheduler builds the real one)
 aoe digest --show latest           # the last stored digest
+aoe digest --show latest --html --out review.html   # the same digest as the review page (Artifact content; answers save in the page)
 aoe card 26                        # one opportunity card
 aoe rate 26 useful --novelty 4     # then: aoe pick <pair> A|B, aoe grade <finding> supported, aoe review-time 45
 aoe decide 26 park --reason not_now --wake date:2027-01-15
