@@ -6,7 +6,9 @@ package lifecycle
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"time"
 
 	"github.com/jackc/pgx/v5"
 )
@@ -132,22 +134,151 @@ func Advance(ctx context.Context, tx pgx.Tx, oppID int64, actor, decisionType, n
 	if next == state {
 		return state, nil
 	}
-	if _, err := tx.Exec(ctx, `UPDATE opportunity SET state = $2, stage_entered_at = now(),
-		budget_units_total = greatest(budget_units_total, $3), no_change_streak = 0 WHERE id = $1`, oppID, next, Budget[next]); err != nil {
-		return "", err
+	return next, Move(ctx, tx, oppID, Transition{From: state, To: next, Actor: actor, Type: decisionType, Reason: reason, Notes: notes})
+}
+
+// Transition is one state change to record.
+type Transition struct {
+	From, To string
+	Actor    string // system | human
+	Type     string // decision type, e.g. research, human, wake
+	Reason   string // reason code, if any
+	Notes    string
+	Wake     []Wake // required when parking
+}
+
+// Move applies a transition and its bookkeeping: the stage budget, kill
+// questions on qualifying, a fresh research unit when an opportunity comes
+// back as a candidate, and the decision row with a gate snapshot.
+func Move(ctx context.Context, tx pgx.Tx, oppID int64, t Transition) error {
+	if t.To == "parked" && len(t.Wake) == 0 {
+		return fmt.Errorf("opportunity %d: parking needs at least one wake condition", oppID)
 	}
-	if next == "qualified" {
+	var segment string
+	if err := tx.QueryRow(ctx, `SELECT segment FROM opportunity WHERE id = $1`, oppID).Scan(&segment); err != nil {
+		return err
+	}
+	revived := t.To == "candidate" && (t.From == "parked" || t.From == "killed")
+	if _, err := tx.Exec(ctx, `UPDATE opportunity SET state = $2, stage_entered_at = now(), no_change_streak = 0,
+		saturated = CASE WHEN $4 THEN false ELSE saturated END,
+		budget_units_total = CASE WHEN $4 THEN budget_units_used + $3 ELSE greatest(budget_units_total, $3) END
+		WHERE id = $1`, oppID, t.To, Budget[t.To], revived); err != nil {
+		return err
+	}
+	if t.To == "qualified" {
 		for _, q := range KillQuestions(segment) {
 			if _, err := InsertQuestion(ctx, tx, oppID, q, "triage", nil, 0); err != nil {
-				return "", err
+				return err
 			}
 		}
 	}
-	snapshot, _ := json.Marshal(map[string]any{"gates": gates})
-	if _, err := tx.Exec(ctx, `INSERT INTO decision (subject_type, subject_id, decision_type, from_state, to_state, actor, reason_code, notes, factor_snapshot)
-		VALUES ('opportunity', $1, $2, $3, $4, $5, NULLIF($6, ''), $7, $8)`,
-		oppID, decisionType, state, next, actor, reason, notes, snapshot); err != nil {
-		return "", err
+	gates, err := Gates(ctx, tx, oppID)
+	if err != nil {
+		return err
 	}
-	return next, nil
+	snapshot, _ := json.Marshal(map[string]any{"gates": gates})
+	var wake any
+	if len(t.Wake) > 0 {
+		w, _ := json.Marshal(t.Wake)
+		wake = w
+	}
+	_, err = tx.Exec(ctx, `INSERT INTO decision (subject_type, subject_id, decision_type, from_state, to_state, actor, reason_code, notes, factor_snapshot, wake_conditions)
+		VALUES ('opportunity', $1, $2, $3, $4, $5, NULLIF($6, ''), $7, $8, $9)`,
+		oppID, t.Type, t.From, t.To, t.Actor, t.Reason, t.Notes, snapshot, wake)
+	return err
+}
+
+// KillReasons is the fixed kill taxonomy (docs/05 §2). "duplicate" is
+// reserved for consolidation.
+var KillReasons = []string{"no_buyer", "no_spend", "unreachable", "incumbent_strong", "negative_margin", "infeasible",
+	"founder_gate", "invalidated_by_experiment", "founder_veto", "out_of_scope"}
+
+// Wake is a machine-checkable wake condition on a parked opportunity
+// (docs/05 §2). date and evidence_count are checked by WakeDue; the other
+// types are recorded for the phases that will watch them.
+type Wake struct {
+	Type                  string `json:"type"` // date | evidence_count | competitor_event | capability | regulation
+	Date                  string `json:"date,omitempty"`
+	ProblemID             int64  `json:"problem_id,omitempty"`
+	MinIndependentOrigins int    `json:"min_independent_origins,omitempty"`
+	Text                  string `json:"text,omitempty"`
+}
+
+// Checkable reports whether WakeDue can fire the condition.
+func (w Wake) Checkable() bool {
+	return (w.Type == "date" && w.Date != "") || (w.Type == "evidence_count" && w.ProblemID > 0 && w.MinIndependentOrigins > 0)
+}
+
+// WakeDue returns parked opportunities whose latest parking decision has a
+// condition that fired, to the candidate stage with a fresh research unit.
+func WakeDue(ctx context.Context, db interface {
+	Begin(context.Context) (pgx.Tx, error)
+}, now time.Time) (int, error) {
+	tx, err := db.Begin(ctx)
+	if err != nil {
+		return 0, err
+	}
+	defer tx.Rollback(ctx) //nolint:errcheck
+	rows, err := tx.Query(ctx, `
+		SELECT o.id, d.wake_conditions FROM opportunity o
+		JOIN LATERAL (SELECT wake_conditions FROM decision WHERE subject_type = 'opportunity' AND subject_id = o.id
+		              AND to_state = 'parked' ORDER BY id DESC LIMIT 1) d ON true
+		WHERE o.state = 'parked' AND d.wake_conditions IS NOT NULL
+		FOR UPDATE OF o SKIP LOCKED`)
+	if err != nil {
+		return 0, err
+	}
+	type parked struct {
+		id    int64
+		conds []Wake
+	}
+	list, err := pgx.CollectRows(rows, func(r pgx.CollectableRow) (parked, error) {
+		var p parked
+		var raw []byte
+		if err := r.Scan(&p.id, &raw); err != nil {
+			return p, err
+		}
+		_ = json.Unmarshal(raw, &p.conds)
+		return p, nil
+	})
+	if err != nil {
+		return 0, err
+	}
+	n := 0
+	for _, p := range list {
+		fired, err := firedCondition(ctx, tx, p.conds, now)
+		if err != nil {
+			return n, err
+		}
+		if fired == "" {
+			continue
+		}
+		if err := Move(ctx, tx, p.id, Transition{From: "parked", To: "candidate", Actor: "system", Type: "wake", Notes: "wake condition fired: " + fired}); err != nil {
+			return n, err
+		}
+		n++
+	}
+	return n, tx.Commit(ctx)
+}
+
+func firedCondition(ctx context.Context, tx pgx.Tx, conds []Wake, now time.Time) (string, error) {
+	for _, w := range conds {
+		switch w.Type {
+		case "date":
+			d, err := time.Parse("2006-01-02", w.Date)
+			if err == nil && !now.Before(d) {
+				return "date " + w.Date, nil
+			}
+		case "evidence_count":
+			var origins int
+			err := tx.QueryRow(ctx, `SELECT independent_origin_count FROM problem WHERE id = $1`, w.ProblemID).Scan(&origins)
+			if err != nil && !errors.Is(err, pgx.ErrNoRows) {
+				return "", err
+			}
+			if err == nil && w.MinIndependentOrigins > 0 && origins >= w.MinIndependentOrigins {
+				return fmt.Sprintf("problem %d reached %d independent origins (needed %d)", w.ProblemID, origins, w.MinIndependentOrigins), nil
+			}
+		}
+	}
+	return "", nil
 }

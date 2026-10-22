@@ -13,6 +13,7 @@ import (
 	"github.com/kwant-dbg/auto/internal/claude"
 	"github.com/kwant-dbg/auto/internal/embed"
 	"github.com/kwant-dbg/auto/internal/problems"
+	"github.com/kwant-dbg/auto/internal/report"
 	"github.com/kwant-dbg/auto/internal/research"
 	"github.com/kwant-dbg/auto/internal/store"
 	"github.com/kwant-dbg/auto/internal/triage"
@@ -34,6 +35,8 @@ type Config struct {
 	Clustering  problems.Config  `yaml:"clustering"`
 	Triage      triage.Options   `yaml:"triage"`
 	Research    research.Options `yaml:"research"`
+	Digest      report.Options   `yaml:"digest"`
+	Baseline    Baseline         `yaml:"baseline"`
 	// FounderProfile is the path of config/founder.yaml (PRD §4).
 	FounderProfile string `yaml:"founder_profile"`
 
@@ -77,6 +80,16 @@ type Extraction struct {
 // On reports whether extraction is enabled.
 func (e Extraction) On() bool { return e.Enabled == nil || *e.Enabled }
 
+// Baseline configures B0, the one-shot deep-research baseline (docs/07 §4).
+type Baseline struct {
+	Enabled  *bool `yaml:"enabled"` // default true
+	Cards    int   `yaml:"cards"`
+	MaxTurns int   `yaml:"max_turns"`
+}
+
+// On reports whether the weekly baseline run is enabled.
+func (b Baseline) On() bool { return b.Enabled == nil || *b.Enabled }
+
 // HTTP configures outbound fetching by connectors.
 type HTTP struct {
 	UserAgent string        `yaml:"user_agent"`
@@ -102,7 +115,10 @@ func Load(path string) (*Config, error) {
 	c.defaults()
 	// Relative paths are resolved once, here: child processes (Claude Code and
 	// the aoe-mcp server it starts) run in other directories.
-	for _, p := range []*string{&c.BlobDir, &c.Claude.WorkDir, &c.FounderProfile} {
+	for _, p := range []*string{&c.BlobDir, &c.Claude.WorkDir, &c.FounderProfile, &c.Digest.OutDir} {
+		if *p == "" {
+			continue
+		}
 		if abs, err := filepath.Abs(*p); err == nil {
 			*p = abs
 		}
@@ -157,6 +173,13 @@ func (c *Config) defaults() {
 	c.Clustering.UseVectors = c.Embeddings.Enabled()
 	c.Triage.Defaults()
 	c.Research.Defaults()
+	c.Digest.Defaults()
+	if c.Baseline.Cards <= 0 {
+		c.Baseline.Cards = 3
+	}
+	if c.Baseline.MaxTurns <= 0 {
+		c.Baseline.MaxTurns = 40
+	}
 	if c.FounderProfile == "" {
 		c.FounderProfile = "config/founder.yaml"
 	}

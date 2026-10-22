@@ -1,0 +1,20 @@
+{
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["judgments"],
+  "properties": {
+    "judgments": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["pair", "winner", "reason"],
+        "properties": {
+          "pair": {"type": "integer", "minimum": 1},
+          "winner": {"type": "string", "enum": ["A", "B"]},
+          "reason": {"type": "string", "maxLength": 200}
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,313 @@
+{
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "cards"
+  ],
+  "properties": {
+    "cards": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 5,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "segment",
+          "job",
+          "problem",
+          "evidence",
+          "counter_evidence",
+          "gates",
+          "prospects",
+          "paths",
+          "mrr",
+          "weakest_link",
+          "next_experiment",
+          "founder_hours"
+        ],
+        "properties": {
+          "segment": {
+            "type": "string",
+            "maxLength": 160
+          },
+          "job": {
+            "type": "string",
+            "maxLength": 160
+          },
+          "problem": {
+            "type": "string",
+            "maxLength": 400
+          },
+          "evidence": {
+            "type": "array",
+            "maxItems": 5,
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "tier",
+                "quote",
+                "source",
+                "url",
+                "claim"
+              ],
+              "properties": {
+                "tier": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 7
+                },
+                "quote": {
+                  "type": "string",
+                  "maxLength": 600
+                },
+                "source": {
+                  "type": "string",
+                  "maxLength": 120
+                },
+                "date": {
+                  "type": "string",
+                  "maxLength": 20
+                },
+                "url": {
+                  "type": "string",
+                  "maxLength": 500
+                },
+                "claim": {
+                  "type": "string",
+                  "maxLength": 300
+                }
+              }
+            }
+          },
+          "counter_evidence": {
+            "type": "array",
+            "maxItems": 3,
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "tier",
+                "quote",
+                "source",
+                "url",
+                "claim"
+              ],
+              "properties": {
+                "tier": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 7
+                },
+                "quote": {
+                  "type": "string",
+                  "maxLength": 600
+                },
+                "source": {
+                  "type": "string",
+                  "maxLength": 120
+                },
+                "date": {
+                  "type": "string",
+                  "maxLength": 20
+                },
+                "url": {
+                  "type": "string",
+                  "maxLength": 500
+                },
+                "claim": {
+                  "type": "string",
+                  "maxLength": 300
+                }
+              }
+            }
+          },
+          "gates": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "F1",
+              "F2",
+              "F3",
+              "F4",
+              "M1",
+              "M2",
+              "M3",
+              "M4",
+              "M5",
+              "M6"
+            ],
+            "properties": {
+              "F1": {
+                "type": "string",
+                "enum": [
+                  "PASS",
+                  "FAIL",
+                  "UNKNOWN"
+                ]
+              },
+              "F2": {
+                "type": "string",
+                "enum": [
+                  "PASS",
+                  "FAIL",
+                  "UNKNOWN"
+                ]
+              },
+              "F3": {
+                "type": "string",
+                "enum": [
+                  "PASS",
+                  "FAIL",
+                  "UNKNOWN"
+                ]
+              },
+              "F4": {
+                "type": "string",
+                "enum": [
+                  "PASS",
+                  "FAIL",
+                  "UNKNOWN"
+                ]
+              },
+              "M1": {
+                "type": "string",
+                "enum": [
+                  "PASS",
+                  "FAIL",
+                  "UNKNOWN"
+                ]
+              },
+              "M2": {
+                "type": "string",
+                "enum": [
+                  "PASS",
+                  "FAIL",
+                  "UNKNOWN"
+                ]
+              },
+              "M3": {
+                "type": "string",
+                "enum": [
+                  "PASS",
+                  "FAIL",
+                  "UNKNOWN"
+                ]
+              },
+              "M4": {
+                "type": "string",
+                "enum": [
+                  "PASS",
+                  "FAIL",
+                  "UNKNOWN"
+                ]
+              },
+              "M5": {
+                "type": "string",
+                "enum": [
+                  "PASS",
+                  "FAIL",
+                  "UNKNOWN"
+                ]
+              },
+              "M6": {
+                "type": "string",
+                "enum": [
+                  "PASS",
+                  "FAIL",
+                  "UNKNOWN"
+                ]
+              }
+            }
+          },
+          "prospects": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "paths": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 3,
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "path",
+                "channel",
+                "weeks_to_first_dollar"
+              ],
+              "properties": {
+                "path": {
+                  "type": "string",
+                  "enum": [
+                    "service_first",
+                    "narrow_software",
+                    "general_tool",
+                    "distribution_first",
+                    "acquire"
+                  ]
+                },
+                "channel": {
+                  "type": "string",
+                  "maxLength": 200
+                },
+                "weeks_to_first_dollar": {
+                  "type": "number",
+                  "minimum": 0
+                }
+              }
+            }
+          },
+          "mrr": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "p10",
+              "p50",
+              "p90",
+              "p_ge_1k",
+              "p_ge_5k"
+            ],
+            "properties": {
+              "p10": {
+                "type": "number",
+                "minimum": 0
+              },
+              "p50": {
+                "type": "number",
+                "minimum": 0
+              },
+              "p90": {
+                "type": "number",
+                "minimum": 0
+              },
+              "p_ge_1k": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 1
+              },
+              "p_ge_5k": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 1
+              }
+            }
+          },
+          "weakest_link": {
+            "type": "string",
+            "maxLength": 300
+          },
+          "next_experiment": {
+            "type": "string",
+            "maxLength": 400
+          },
+          "founder_hours": {
+            "type": "number",
+            "minimum": 0
+          }
+        }
+      }
+    }
+  }
+}

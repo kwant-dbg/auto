@@ -61,6 +61,24 @@ research:
 
 founder_profile: config/founder.yaml
 
+# The weekly cycle (docs/08). B0, the one-shot baseline, runs early in the
+# week; the digest is built when due and waits up to baseline_wait for B0
+# so its blind pairs have cards. Limits are the founder's attention budget.
+digest:
+  weekday: monday
+  hour: 7                       # UTC
+  cards: 3
+  approvals: 5
+  pairs: 2
+  spot_checks: 3
+  changes: 5
+  baseline_wait: 6h
+  out_dir: data/digests         # a markdown copy of each digest
+baseline:
+  enabled: true
+  cards: 3
+  max_turns: 40
+
 # Local open-source embedding model (docs/04 §7). Empty provider disables
 # embeddings; docker-compose sets these for its bundled Ollama service.
 embeddings:

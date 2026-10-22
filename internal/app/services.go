@@ -2,6 +2,7 @@ package app
 
 import (
 	"context"
+	"encoding/json"
 	"log/slog"
 	"os"
 	"os/exec"
@@ -9,6 +10,7 @@ import (
 	"time"
 
 	"github.com/kwant-dbg/auto/internal/assess"
+	"github.com/kwant-dbg/auto/internal/baseline"
 	"github.com/kwant-dbg/auto/internal/claude"
 	"github.com/kwant-dbg/auto/internal/config"
 	"github.com/kwant-dbg/auto/internal/debate"
@@ -18,6 +20,9 @@ import (
 	"github.com/kwant-dbg/auto/internal/jobs"
 	"github.com/kwant-dbg/auto/internal/llm"
 	"github.com/kwant-dbg/auto/internal/problems"
+	"github.com/kwant-dbg/auto/internal/queue"
+	"github.com/kwant-dbg/auto/internal/rank"
+	"github.com/kwant-dbg/auto/internal/report"
 	"github.com/kwant-dbg/auto/internal/research"
 	"github.com/kwant-dbg/auto/internal/store"
 	"github.com/kwant-dbg/auto/internal/triage"
@@ -76,6 +81,7 @@ func mcpBinary(cfg *config.Config) (string, error) {
 // needs a configured embedding server.
 func RegisterHandlers(ctx context.Context, w *worker.Worker, cfg *config.Config, st *store.Store, log *slog.Logger) {
 	w.Handle(jobs.TaskCollect, jobs.CollectHandler(st, CollectOptions(cfg)))
+	w.Handle(report.DigestTaskType, DigestHandler(cfg, st))
 
 	client, runner, err := NewLLM(ctx, cfg, st, log)
 	if err != nil {
@@ -94,6 +100,10 @@ func RegisterHandlers(ctx context.Context, w *worker.Worker, cfg *config.Config,
 			w.Handle(assess.TaskType, Assessor(cfg, st, client, tr.Founder).Handle)
 		}
 		w.Handle(research.TaskType, Researcher(cfg, st, client).Handle)
+		if tr != nil {
+			w.Handle(baseline.TaskType, Baseline(cfg, st, client, tr.Founder).Handle)
+			w.Handle(rank.TaskType, (&rank.Ranker{Store: st, LLM: client, Model: cfg.Models.Mid, Profile: tr.Founder.Summary()}).Handle)
+		}
 		w.Handle(debate.TaskType, Debater(cfg, st, client).Handle)
 		go recheck(ctx, runner, log)
 	}
@@ -147,6 +157,33 @@ func Triager(cfg *config.Config, st *store.Store, client *llm.Client) (*triage.T
 // Verifier builds the claim verifier (mid-tier model for entailment).
 func Verifier(cfg *config.Config, st *store.Store, client *llm.Client) *verify.Verifier {
 	return &verify.Verifier{Store: st, LLM: client, Model: cfg.Models.Mid}
+}
+
+// Baseline builds the B0 runner (top-tier model, web search only).
+func Baseline(cfg *config.Config, st *store.Store, client *llm.Client, prof *founder.Profile) *baseline.Runner {
+	return &baseline.Runner{Store: st, LLM: client, Model: cfg.Models.Top, Profile: prof.Summary(), Cards: cfg.Baseline.Cards,
+		MaxTurns: cfg.Baseline.MaxTurns, SkipF1: !prof.Founder.EmploymentConstraints.ConflictCheckRequired}
+}
+
+// DigestHandler builds the week's digest. It waits up to BaselineWait past
+// the due time for the week's B0 run, so the blind pairs have cards.
+func DigestHandler(cfg *config.Config, st *store.Store) worker.Handler {
+	b := &report.Builder{Store: st, Opt: cfg.Digest}
+	return func(ctx context.Context, t *queue.Task) (any, error) {
+		var in report.DigestInputs
+		if err := json.Unmarshal(t.Inputs, &in); err != nil {
+			return nil, queue.Permanent(err)
+		}
+		now := time.Now()
+		pending, err := baseline.Pending(ctx, st, in.Week)
+		if err != nil {
+			return nil, err
+		}
+		if pending && now.Before(in.Due.Add(b.Opt.BaselineWait)) {
+			return nil, &worker.DeferError{Until: now.Add(15 * time.Minute), Reason: "waiting for this week's B0 baseline run"}
+		}
+		return b.Build(ctx, now, "system", true)
+	}
 }
 
 // Researcher builds the research agent (top-tier model).

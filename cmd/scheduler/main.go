@@ -12,11 +12,15 @@ import (
 
 	"github.com/kwant-dbg/auto/internal/app"
 	"github.com/kwant-dbg/auto/internal/assess"
+	"github.com/kwant-dbg/auto/internal/baseline"
 	"github.com/kwant-dbg/auto/internal/config"
 	"github.com/kwant-dbg/auto/internal/debate"
 	"github.com/kwant-dbg/auto/internal/embed"
 	"github.com/kwant-dbg/auto/internal/jobs"
+	"github.com/kwant-dbg/auto/internal/lifecycle"
 	"github.com/kwant-dbg/auto/internal/problems"
+	"github.com/kwant-dbg/auto/internal/rank"
+	"github.com/kwant-dbg/auto/internal/report"
 	"github.com/kwant-dbg/auto/internal/research"
 	"github.com/kwant-dbg/auto/internal/store"
 	"github.com/kwant-dbg/auto/internal/triage"
@@ -107,5 +111,24 @@ func runTick(ctx context.Context, cfg *config.Config, st *store.Store, log *slog
 	}
 	if _, err := debate.Schedule(ctx, st, 2); err != nil {
 		log.Error("schedule debate", "err", err)
+	}
+	if n, err := lifecycle.WakeDue(ctx, st.DB, time.Now()); err != nil {
+		log.Error("check wake conditions", "err", err)
+	} else if n > 0 {
+		log.Info("parked opportunities woken", "count", n)
+	}
+	// The weekly cycle: B0 runs early in the week, the digest when due.
+	if cfg.Baseline.On() {
+		if _, err := baseline.Schedule(ctx, st, time.Now()); err != nil {
+			log.Error("schedule baseline", "err", err)
+		}
+	}
+	if _, err := rank.Schedule(ctx, st, cfg.Digest.Cards); err != nil {
+		log.Error("schedule ranking", "err", err)
+	}
+	if ok, err := report.ScheduleDigest(ctx, st, cfg.Digest, time.Now()); err != nil {
+		log.Error("schedule digest", "err", err)
+	} else if ok {
+		log.Info("weekly digest enqueued")
 	}
 }

@@ -61,6 +61,18 @@ Research and evaluation (agents; use the subscription)
   assess <opportunity>                          ranged factors, Monte Carlo MRR, weakest link
   debate <opportunity>                          Bull vs Bear, verified, judged
 
+Weekly review (the founder's hour)
+  digest [--preview | --show WEEK|latest]       build (or show) this week's digest
+  card <opportunity> [--blind]                  one opportunity card in the fixed template
+  rate <opportunity> useful|not|duplicate [--novelty 1-5] [--reason R]
+  pick <pair> A|B [--reason R]                  blind pair: the card you'd rather spend an hour on
+  grade <finding> supported|overclaimed|wrong   spot-check a verified finding
+  decide <opportunity> advance|park|kill|revive --reason CODE [--wake date:YYYY-MM-DD|evidence:+N ...] [--override]
+  answer <question> "<answer>"                  answer a question only you can answer
+  review-time <minutes> [--week W]              time spent on the digest
+  metrics [--weeks N]                           acceptance criteria A1–A10 and the engine stop rule
+  baseline [--week W] [--dry-run]               run the B0 one-shot baseline now
+
 Operations
   stats                           pipeline health: documents, extraction, rejection rate, observations by tier
   tasks                           queue summary and recent dead letters
@@ -141,6 +153,26 @@ func run(ctx context.Context, args []string) error {
 		return assessCmd(ctx, cfg, st, rest)
 	case "debate":
 		return debateCmd(ctx, cfg, st, rest)
+	case "digest":
+		return digestCmd(ctx, cfg, st, rest)
+	case "card":
+		return cardCmd(ctx, st, rest)
+	case "rate":
+		return rateCmd(ctx, st, rest)
+	case "pick":
+		return pickCmd(ctx, st, rest)
+	case "grade":
+		return gradeCmd(ctx, st, rest)
+	case "decide":
+		return decideCmd(ctx, st, rest)
+	case "answer":
+		return answerCmd(ctx, st, rest)
+	case "review-time":
+		return reviewTimeCmd(ctx, st, rest)
+	case "metrics":
+		return metricsCmd(ctx, st, rest)
+	case "baseline":
+		return baselineCmd(ctx, cfg, st, rest)
 	case "pause", "resume":
 		if err := st.SetPaused(ctx, cmd == "pause"); err != nil {
 			return err
