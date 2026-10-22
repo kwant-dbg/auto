@@ -2,7 +2,7 @@
 
 Pre-implementation strategy and architecture for a personal system that finds, evaluates, and validates commercially viable software opportunities for a solo technical founder.
 
-**Status:** design review complete and founder decisions recorded (Go; Claude Enterprise subscription via headless Claude Code; Claude-only Bull/Bear/Judge debate; marketplaces as one evidence source among several, with general-purpose tools in scope; week-8 stop rule accepted). Phase 1 build in progress: weeks 1–4 are done (see **Running it** below).
+**Status:** design review complete and founder decisions recorded (Go; Claude Enterprise subscription via headless Claude Code; Claude-only Bull/Bear/Judge debate; marketplaces as one evidence source among several, with general-purpose tools in scope; week-8 stop rule accepted). Phase 1 build in progress: weeks 1–5 are done (see **Running it** below).
 
 ## The core thesis
 
@@ -41,7 +41,7 @@ AOE succeeds if the founder spends their few weekly hours on **opportunities wit
 
 ## Running it
 
-### What's built (Phase 1, weeks 1–4)
+### What's built (Phase 1, weeks 1–5)
 
 | Piece | Where | Status |
 |---|---|---|
@@ -63,6 +63,10 @@ AOE succeeds if the founder spends their few weekly hours on **opportunities wit
 | Research agent: answers questions with WebSearch + `aoe-mcp`, cites only snapshotted documents; findings verified (span check + entailment); gates change only on supported findings; budgets, saturation, lifecycle | `internal/research`, `internal/verify`, `internal/lifecycle` | ✅ tested; **live** (see below) |
 | Assessor: ranged factors with citations, wide priors for unsupported factors, seeded Monte Carlo (P10/P50/P90 MRR@12m), weakest link | `internal/assess` | ✅ tested |
 | Debate: Bull and Bear in parallel independent sessions, two cited rounds, unsupported arguments struck, fresh Judge | `internal/debate` | ✅ tested |
+| Weekly digest in the docs/08 format; opportunity cards in one template for AOE and B0 (blind mode hides every source marker); quotes re-span-checked at render time; unchanged cards not resurfaced | `internal/report` | ✅ tested |
+| B0 baseline: one web-search session per week with the founder profile, cards in the same fields | `internal/baseline` | ✅ tested; **live** |
+| Pairwise ranking of eligible opportunities, both orders, Bradley–Terry | `internal/rank` | ✅ tested |
+| Founder feedback and decisions: `rate`, `pick`, `grade`, `decide` (docs/05 transition checks, wake conditions), `answer`, `review-time`; `metrics` for A1–A10 and the stop rule | `internal/feedback`, `internal/lifecycle`, `cmd/aoe` | ✅ tested |
 
 **Live results, week 4.** Research killed both Jira opportunities that reached it on their cheapest check. *Bulk-cloning Jira projects* (opportunity 10) has a verified 4.5★, 11.6k-install, Enterprise Certified incumbent that Atlassian's own help article recommends. *Jira issue templates* (opportunity 26) qualified once research verified its buyer, then failed M4 on two 4.8–4.9★ Cloud incumbents. A post-mortem assessment of 26 gave P50 MRR@12m of $297 (P(≥$1k) 10%, weakest link: price), and the debate upheld the kill 5–1, with the 2029 Data Center end-of-life migration left as the one open thread.
 
@@ -71,6 +75,12 @@ AOE succeeds if the founder spends their few weekly hours on **opportunities wit
 ### Useful commands
 
 ```sh
+aoe digest --preview               # this week's digest without saving it (the scheduler builds the real one)
+aoe digest --show latest           # the last stored digest
+aoe card 26                        # one opportunity card
+aoe rate 26 useful --novelty 4     # then: aoe pick <pair> A|B, aoe grade <finding> supported, aoe review-time 45
+aoe decide 26 park --reason not_now --wake date:2027-01-15
+aoe metrics                        # acceptance criteria A1–A10 and the week-8 stop rule
 aoe stats                          # documents, extraction progress, rejection rate, observations by tier, Claude usage today
 aoe problems --min-origins 2       # problems backed by independent evidence
 aoe opportunities                  # triaged opportunities with gate verdicts and open questions

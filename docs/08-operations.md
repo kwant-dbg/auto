@@ -59,6 +59,24 @@ Next experiment: 8 problem interviews from prospect list; kill if <2 report curr
 
 Decisions are recorded in one keystroke plus an optional reason code.
 
+### As built (week 5)
+
+- **When.** The scheduler runs B0 early in each ISO week and builds the digest when it's due (`digest.weekday`/`hour`, UTC; Monday 07:00 by default). If B0 hasn't finished, the digest waits up to `baseline_wait` (6 h) and is then built without pairs, saying so. Each week's digest is built once, stored in `digest` with what it showed (`digest_item`, `card_pair`), and written to `data/digests/digest-<week>.md`. `aoe digest --preview` renders without saving; `aoe digest --show latest` prints a stored one.
+- **Which cards.** Opportunities in Qualified, Dossier or Validating, ordered by the latest pairwise ranking (`internal/rank`: both presentation orders, Bradley–Terry; it runs when more are eligible than there are cards), then P(MRR ≥ $1k), stage and evidence. A card already shown returns only after a material change (a new assessment, a stage change or a new verified finding). With no eligible card the digest names the closest opportunity and what blocks it.
+- **Quotes.** Every quote is re-checked against its stored snapshot at render time. A quote that fails is dropped and counted (A1), never shown.
+- **Decisions needed.** Dossiers (saturated first), Qualified opportunities with ≥ 20 prospects (eligible for an early probe), and questions only the founder can answer, capped at `approvals`.
+- **Health.** Failed collection runs are listed apart from dead tasks: they don't retry in the queue because the source's back-off reschedules them.
+
+| Command | Records |
+|---|---|
+| `aoe rate <card> useful\|not\|duplicate [--novelty 1-5] [--reason R]` | A5 usefulness, A4 duplicates, novelty |
+| `aoe pick <pair> A\|B [--reason R]` | A6 blind win rate vs B0 (reveals the AOE side after recording) |
+| `aoe grade <finding> supported\|overclaimed\|wrong` | A2 claim support |
+| `aoe decide <card> advance\|park\|kill\|revive --reason <code> [--wake ...]` | Stage decisions. Advance checks the docs/05 §4 rules and lists what's missing (`--override` records the exception). Park needs a machine-checkable wake condition (`date:YYYY-MM-DD`, `evidence:+N`), which the scheduler fires. |
+| `aoe answer <question> "<text>"` | Answers to questions desk research can't answer |
+| `aoe review-time <minutes>` | A8 founder time |
+| `aoe metrics [--weeks 4]` | A1–A10 and the week-8 stop rule |
+
 ---
 
 ## 3. Human-attention budget (hard limits, configurable)

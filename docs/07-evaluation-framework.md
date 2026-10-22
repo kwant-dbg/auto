@@ -54,7 +54,7 @@ So evaluation is layered. Lower layers are fast and plentiful but further from t
 
 Baselines:
 
-- **B0**: one-shot deep-research prompt with the same founder profile.
+- **B0**: one-shot deep-research prompt with the same founder profile. As built (`internal/baseline`, prompt `baseline_b0/v1`): one top-model Claude Code session per week with WebSearch only (no snapshot or knowledge-base tools), asked for 3 cards in the same fields as AOE's. Its quotes are shown as given: they aren't snapshotted or span-checked, and that difference is part of what the comparison measures. Earlier B0 ideas are listed in the prompt so it doesn't repeat itself, as AOE doesn't resurface unchanged cards.
 - **B1** (monthly): the founder's own 2–4 hours of manual research, written as cards.
 - **B2** (optional): an outside founder/advisor rates a sample monthly. This reduces single-rater taste bias.
 
@@ -65,6 +65,8 @@ Baselines:
 - Report the distribution. Novelty matters *only together with* evidence strength, because novel-and-unsupported is just fiction.
 
 **Limitations:** founder preference is a proxy for market truth and rewards persuasive writing. Mitigations: hide scores and prose style differences by using a fixed card template for all sources (including baselines); weight usefulness ratings by later validation outcomes (L5).
+
+**Blinding as built.** Both sides render through one card template (`internal/report`). Blind mode drops the card id, state, first-seen week, snapshot links and commands; replaces AOE's source names with the cited site's host; scrubs AOE's internal evidence references (O123, F45) from model text; and marks F1 SKIPPED on B0's cards when the founder has disabled the employment check, as triage does on AOE's. The side the AOE card takes is a fair coin per pair, and `aoe pick` reveals which side was AOE only after the pick is stored. Content still differs, and that is the point: AOE's cards can show many independent origins and verified research findings, while B0's quotes are search snippets. A founder who learns to spot one side's style is a known residual risk. The reason codes on picks help detect it.
 
 ---
 
