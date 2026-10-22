@@ -61,6 +61,9 @@ type Outcome struct {
 	State         string `json:"state"`
 	Reason        string `json:"reason,omitempty"`
 	Questions     int    `json:"questions"`
+	// Skipped says why nothing was triaged, e.g. the problem was merged
+	// into another after the task was queued.
+	Skipped string `json:"skipped,omitempty"`
 }
 
 // Triager runs triage.
@@ -278,6 +281,21 @@ func killQuestions(segment string) []modelQuestion {
 
 // Run triages one problem.
 func (t *Triager) Run(ctx context.Context, taskID *int64, problemID int64) (Outcome, error) {
+	// Consolidation may have merged the problem since this task was queued;
+	// its evidence now belongs to the surviving problem, which is triaged
+	// on its own.
+	var status string
+	var into *int64
+	if err := t.Store.DB.QueryRow(ctx, `SELECT status, merged_into FROM problem WHERE id = $1`, problemID).Scan(&status, &into); err != nil {
+		return Outcome{}, queue.Permanent(fmt.Errorf("problem %d: %w", problemID, err))
+	}
+	if status != "active" {
+		out := Outcome{Skipped: "problem is " + status}
+		if into != nil {
+			out.Skipped = fmt.Sprintf("problem was merged into problem %d", *into)
+		}
+		return out, nil
+	}
 	p, ev, err := t.load(ctx, problemID)
 	if err != nil {
 		return Outcome{}, queue.Permanent(err)

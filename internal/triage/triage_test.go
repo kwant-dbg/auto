@@ -226,3 +226,22 @@ func TestScheduleEligibilityAndRetriage(t *testing.T) {
 		t.Fatalf("scheduled past the daily cap: %d", n)
 	}
 }
+
+func TestRunSkipsMergedProblems(t *testing.T) {
+	st := testdb.New(t)
+	ctx := context.Background()
+	from, _ := seedProblem(t, st, 2, 4)
+	into, _ := seedProblem(t, st, 3, 1)
+	if _, err := st.DB.Exec(ctx, `UPDATE problem_observation SET problem_id = $2 WHERE problem_id = $1`, from, into); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := st.DB.Exec(ctx, `UPDATE problem SET status = 'merged', merged_into = $2 WHERE id = $1`, from, into); err != nil {
+		t.Fatal(err)
+	}
+	f := &fakeRunner{out: "{}"}
+	tr := &Triager{Store: st, LLM: &llm.Client{Runner: f, Store: st}, Model: "sonnet", Founder: &founder.Profile{}}
+	out, err := tr.Run(ctx, nil, from)
+	if err != nil || out.Skipped != fmt.Sprintf("problem was merged into problem %d", into) || out.OpportunityID != 0 {
+		t.Fatalf("triage of a merged problem = %+v, %v", out, err)
+	}
+}
