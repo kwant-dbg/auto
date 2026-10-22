@@ -27,7 +27,7 @@ type HNConfig struct {
 	BaseURL      string   `json:"base_url"` // default https://hn.algolia.com
 	Queries      []string `json:"queries"`
 	Tags         string   `json:"tags"`           // default "(story,comment)"
-	HitsPerQuery int      `json:"hits_per_query"` // per run, default 40, max 200
+	HitsPerQuery int      `json:"hits_per_query"` // per run, default 40, max 1000 (the API's page limit)
 	LookbackDays int      `json:"lookback_days"`  // first run, default 14
 	MinTextChars int      `json:"min_text_chars"` // skip short comments, default 160
 	// SkipStories drops items in threads whose title starts with one of these
@@ -66,7 +66,7 @@ func init() {
 		if c.HitsPerQuery <= 0 {
 			c.HitsPerQuery = 40
 		}
-		c.HitsPerQuery = min(c.HitsPerQuery, 200)
+		c.HitsPerQuery = min(c.HitsPerQuery, 1000)
 		if c.LookbackDays <= 0 {
 			c.LookbackDays = 14
 		}

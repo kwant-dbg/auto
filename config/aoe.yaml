@@ -180,8 +180,8 @@ sources:
     enabled: true
     cadence: 24h
     config:
-      hits_per_query: 100
-      lookback_days: 14         # first run
+      hits_per_query: 500
+      lookback_days: 90         # first run: a quarter of history, so problems can corroborate
       min_text_chars: 160
       # Matched exactly (no typo tolerance; multi-word queries as phrases).
       # Tool names find practitioners discussing their tools far more often
