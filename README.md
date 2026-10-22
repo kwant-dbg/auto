@@ -70,7 +70,20 @@ AOE succeeds if the founder spends their few weekly hours on **opportunities wit
 
 **Live results, week 4.** Research killed both Jira opportunities that reached it on their cheapest check. *Bulk-cloning Jira projects* (opportunity 10) has a verified 4.5★, 11.6k-install, Enterprise Certified incumbent that Atlassian's own help article recommends. *Jira issue templates* (opportunity 26) qualified once research verified its buyer, then failed M4 on two 4.8–4.9★ Cloud incumbents. A post-mortem assessment of 26 gave P50 MRR@12m of $297 (P(≥$1k) 10%, weakest link: price), and the debate upheld the kill 5–1, with the 2029 Data Center end-of-life migration left as the one open thread.
 
-**Next (week 5):** the weekly digest and opportunity cards, CLI feedback (ratings, pairwise picks, finding grades), the one-shot-prompt baseline for the blind comparison, and the first full weekly cycle.
+**Live results, week 5: the first full weekly cycle** (fresh database, all fixes in play). Collection snapshotted about 2,970 documents: 595 Confluence and 583 Jira listings and reviews, 656 WordPress, and 544 federal service-contract awards after one back-off retry. Extraction produced about 2,400 observations with 0.3% of quotes rejected. Clustering and consolidation formed 174 problems with ≥ 2 independent origins. Triage used its daily cap of 40 and research its 30: 3 qualified, 26 candidates, 11 killed (7 `out_of_scope`, 3 `incumbent_strong`, 1 `infeasible`). The three qualified opportunities were assessed, and the scheduler built the W43 digest. It has 3 cards, 2 blind pairs against B0 and 3 spot-check findings, and all 38 quotes passed the render-time span check.
+
+The cycle found four bugs, all fixed with regression tests:
+
+- A connection-pool deadlock when four sources collected at once.
+- Research scheduling stopped as soon as any opportunity was killed.
+- The first digest's blind pairs were recognisable by format alone: B0's descriptive source names, dates, AOE's "more origins" lines, and AOE's unassessed cards.
+- Card headers named one observation's job instead of the problem's.
+
+It wasn't unattended: deploying those fixes took restarts and a digest rebuild, so the A9 streak starts next week.
+
+**What the first digest says about AOE vs B0.** B0's cards sit squarely in the founder's SRE/infra domain: Airflow 2 end-of-life migrations (P50 MRR $1.2k) and EKS upgrade-as-a-service (P50 $1.5k). AOE's best card is Jira portfolio and capacity planning (P50 $296, P(≥$1k) 0.13). Its two federal cards, staff training ($74) and expert witnesses ($21), are commodity purchasing categories that passed M1/M2 on spend alone. Expect B0 to win this week's pairs. The likely cause is source selection rather than the pipeline. AOE's enabled sources (Jira, Confluence and WordPress marketplaces, federal contracts) don't overlap the founder's domains, while B0 aims its web search with the profile.
+
+**Next (week 6):** the founder's first review (`aoe digest --show latest`, then `rate`/`pick`/`grade`, and `review-time`). Then sources aimed at the founder's domains (GitHub issues and HN for infrastructure tools, which are already built but disabled). A minimum P(≥$1k) for a card, so near-zero opportunities don't take the founder's hour. And a triage rule for procurement-only problems that have spend but no software-shaped obstacle.
 
 ### Useful commands
 

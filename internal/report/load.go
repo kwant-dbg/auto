@@ -5,9 +5,11 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math"
 	"net/url"
 	"regexp"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -242,7 +244,7 @@ func (c *Card) loadAssessment(ctx context.Context, db queryer, id int64) error {
 			} else if !clamped {
 				ev = "cited evidence"
 			}
-			c.Weakest = fmt.Sprintf("%s %.3g–%.3g %s, base %.3g (%s)", weakest, lo, hi, unit, base, ev)
+			c.Weakest = fmt.Sprintf("%s %s–%s %s, base %s (%s)", weakest, num(lo), num(hi), unit, num(base), ev)
 		case !errors.Is(err, pgx.ErrNoRows):
 			return err
 		}
@@ -310,6 +312,20 @@ func JobOf(statement string) string {
 		return ""
 	}
 	return strings.TrimSpace(m[1])
+}
+
+// num formats a factor value to 3 significant figures without exponents:
+// 1200, 250, 0.05.
+func num(v float64) string {
+	return strconv.FormatFloat(roundSig(v, 3), 'f', -1, 64)
+}
+
+func roundSig(v float64, digits int) float64 {
+	if v == 0 {
+		return 0
+	}
+	p := math.Pow(10, float64(digits)-math.Ceil(math.Log10(math.Abs(v))))
+	return math.Round(v*p) / p
 }
 
 // ISOWeek formats t as an ISO week, e.g. 2026-W43.

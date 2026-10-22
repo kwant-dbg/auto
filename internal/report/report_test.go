@@ -94,6 +94,9 @@ func (s *seeded) assess(t *testing.T, p1k float64) {
 		'm', 'p', 'h') RETURNING id`, s.opp, p1k).Scan(&aid))
 	_, err := s.st.DB.Exec(context.Background(), `UPDATE opportunity SET current_assessment_id = $2 WHERE id = $1`, s.opp, aid)
 	must(t, err)
+	_, err = s.st.DB.Exec(context.Background(), `INSERT INTO factor_estimate (assessment_id, factor_code, low, base, high, unit, clamped_to_prior)
+		VALUES ($1, 'p_pay', 0.01, 0.05, 1234.5, 'prob', true)`, aid)
+	must(t, err)
 }
 
 func TestCardTemplateAndSpanCheck(t *testing.T) {
@@ -108,7 +111,7 @@ func TestCardTemplateAndSpanCheck(t *testing.T) {
 		"Jira admins — share templates across projects — qualified", fmt.Sprintf("card %d", s.opp), "2 independent origins",
 		"T1 — “We pay $40 a month for Acme Templates.”", "[snapshot", "Acme is a strong incumbent", "F2–F4 ?",
 		"M1 ✓ · M2 ✓", "P50 $1.4k", "P(≥$1k)=0.42", "service-first via outreach (first $ in ~3 wks)",
-		"8 problem interviews; kill if fewer than 2 report spend", "marketplace.example, 2026", "~4 h", fmt.Sprintf("aoe decide %d", s.opp),
+		"8 problem interviews; kill if fewer than 2 report spend", "p_pay 0.01–1230 prob, base 0.05 (no evidence → wide prior)", "marketplace.example, 2026", "~4 h", fmt.Sprintf("aoe decide %d", s.opp),
 	} {
 		if !strings.Contains(md, want) {
 			t.Errorf("card lacks %q:\n%s", want, md)
